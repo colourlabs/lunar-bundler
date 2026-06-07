@@ -40,7 +40,6 @@ modules that aren't part of your project (like `require("socket")`) are left alo
 
 ## limitations (as of right now)
 
-- dynamic requires (`require(some_variable)`) are not resolved and will produce an error
 - native C modules cannot be bundled (this probably won't be supported [lunar](https://github.com/colourlabs/lunar) doesn't support C modules due to security concerns)
 - lua 5.5 `global` declarations are stripped before parsing and not emitted in the bundle
 

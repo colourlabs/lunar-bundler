@@ -174,9 +174,13 @@ fn visit(
         path: path.clone(),
         source: e,
     })?;
-    let requires = scan_requires(&source, path)?;
+    let scan_result = scan_requires(&source, path)?;
 
-    for req in requires {
+    for location in &scan_result.dynamic_requires {
+        eprintln!("warning: dynamic require() in '{}' cannot be bundled and will be resolved at runtime", location);
+    }
+
+    for req in scan_result.requires {
         match resolver.resolve(&req) {
             ResolveResult::Found(dep_path) => {
                 visit(&dep_path, &req, resolver, visited, in_stack, order)?

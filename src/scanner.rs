@@ -11,20 +11,23 @@ mod tests {
 
     #[test]
     fn test_simple_require() {
-        let src = r#"local x = require("foo.bar")"#;
-        assert_eq!(scan_requires(src, &PathBuf::from("test.lua")).unwrap(), vec!["foo.bar"]);
+        let result = scan_requires(r#"local x = require("foo.bar")"#, &PathBuf::from("test.lua")).unwrap();
+        assert_eq!(result.requires, vec!["foo.bar"]);
+        assert!(result.dynamic_requires.is_empty());
     }
 
     #[test]
     fn test_single_quotes() {
-        let src = r#"local x = require('foo.bar')"#;
-        assert_eq!(scan_requires(src, &PathBuf::from("test.lua")).unwrap(), vec!["foo.bar"]);
+        let result = scan_requires(r#"local x = require('foo.bar')"#, &PathBuf::from("test.lua")).unwrap();
+        assert_eq!(result.requires, vec!["foo.bar"]);
     }
 
     #[test]
-    fn test_dynamic_require_ignored() {
-        let src = r#"local x = require(some_var)"#;
-        assert_eq!(scan_requires(src, &PathBuf::from("test.lua")).unwrap(), Vec::<String>::new());
+    fn test_dynamic_require_tracked() {
+        let result = scan_requires(r#"local x = require(some_var)"#, &PathBuf::from("test.lua")).unwrap();
+        assert!(result.requires.is_empty());
+        assert_eq!(result.dynamic_requires.len(), 1);
+        assert!(result.dynamic_requires[0].contains("test.lua"));
     }
 
     #[test]
@@ -33,7 +36,8 @@ mod tests {
             local a = require("foo")
             local b = require("bar.baz")
         "#;
-        assert_eq!(scan_requires(src, &PathBuf::from("test.lua")).unwrap(), vec!["foo", "bar.baz"]);
+        let result = scan_requires(src, &PathBuf::from("test.lua")).unwrap();
+        assert_eq!(result.requires, vec!["foo", "bar.baz"]);
     }
 
     #[test]
@@ -42,13 +46,21 @@ mod tests {
             global print, os
             local a = require("foo")
         "#;
-        assert_eq!(scan_requires(src, &PathBuf::from("test.lua")).unwrap(), vec!["foo"]);
+        let result = scan_requires(src, &PathBuf::from("test.lua")).unwrap();
+        assert_eq!(result.requires, vec!["foo"]);
     }
+}
+
+pub struct ScanResult {
+    pub requires: Vec<String>,
+    pub dynamic_requires: Vec<String>, // locations of unresolvable dynamic requires
 }
 
 #[derive(Default)]
 struct RequireVisitor {
     requires: Vec<String>,
+    dynamic_requires: Vec<String>,
+    path: String,
 }
 
 impl Visitor for RequireVisitor {
@@ -85,27 +97,36 @@ impl Visitor for RequireVisitor {
             return;
         }
 
-        // must be a string literal
-        let expr = match args.iter().next() {
-            Some(ast::Expression::String(s)) => s,
-            _ => return,
-        };
-
-        // strip the surrounding quotes
-        let raw = expr.token().to_string();
-        let module = raw.trim_matches(|c| c == '"' || c == '\'').to_string();
-        self.requires.push(module);
+        match args.iter().next() {
+            Some(ast::Expression::String(s)) => {
+                // static string literal - resolvable
+                let raw = s.token().to_string();
+                let module = raw.trim_matches(|c| c == '"' || c == '\'').to_string();
+                self.requires.push(module);
+            }
+            _ => {
+                // dynamic require - unresolvable at bundle time
+                self.dynamic_requires.push(self.path.clone());
+            }
+        }
     }
 }
 
-pub fn scan_requires(source: &str, path: &PathBuf) -> Result<Vec<String>> {
+pub fn scan_requires(source: &str, path: &PathBuf) -> Result<ScanResult> {
     let preprocessed = crate::preprocessor::preprocess(source);
     let ast = full_moon::parse(&preprocessed)
         .map_err(|e| BundlerError::ParseError {
             path: path.clone(),
             reason: format!("{:?}", e),
         })?;
-    let mut visitor = RequireVisitor::default();
+    let mut visitor = RequireVisitor {
+        requires: vec![],
+        dynamic_requires: vec![],
+        path: path.display().to_string(),
+    };
     visitor.visit_ast(&ast);
-    Ok(visitor.requires)
+    Ok(ScanResult {
+        requires: visitor.requires,
+        dynamic_requires: visitor.dynamic_requires,
+    })
 }
