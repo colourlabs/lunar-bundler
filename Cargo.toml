@@ -1,0 +1,12 @@
+[package]
+name = "lunar-bundler"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.102"
+clap = { version = "4.6.1", features = ["derive"] }
+full_moon = { git = "https://github.com/wez/full-moon", branch = "lua55", features = ["lua54", "lua53", "lua52", "lua55"] }
+tempfile = "3.27.0"
+thiserror = "2.0.18"
+walkdir = "2.5.0"
