@@ -7,6 +7,8 @@ edition = "2024"
 anyhow = "1.0.102"
 clap = { version = "4.6.1", features = ["derive"] }
 full_moon = { git = "https://github.com/wez/full-moon", branch = "lua55", features = ["lua54", "lua53", "lua52", "lua55"] }
+serde = { version = "1.0.228", features = ["derive"] }
 tempfile = "3.27.0"
 thiserror = "2.0.18"
+toml = "1.1.2"
 walkdir = "2.5.0"

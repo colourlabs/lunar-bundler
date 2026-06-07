@@ -1,0 +1,7 @@
+[bundle]
+entry = "main.lua"
+output = "bundle.lua"
+lua_version = "54"
+
+[paths]
+search = ["."]

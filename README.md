@@ -8,6 +8,14 @@ A probably fast Lua bundler written in Rust. Resolves `require()` calls and bund
 cargo install --path .
 ```
 
+## demo
+
+```bash
+cd demo
+cargo run --manifest-path ../Cargo.toml
+lua bundle.lua
+```
+
 ## usage
 
 ```bash

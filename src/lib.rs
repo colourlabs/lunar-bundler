@@ -4,6 +4,7 @@ pub mod error;
 pub mod graph;
 pub mod preprocessor;
 pub mod resolver;
+pub mod config;
 pub mod scanner;
 
 pub struct BundleOptions {
