@@ -7,17 +7,35 @@ fn fixture(name: &str) -> PathBuf {
         .join(name)
 }
 
-#[test]
-fn test_diamond_bundle() {
-    let out = bundle(BundleOptions {
-        entry: fixture("diamond/main.lua"),
-        search_paths: vec![fixture("diamond")],
-        lua_version: "54".to_string(),
+fn default_options(entry: PathBuf, search_paths: Vec<PathBuf>, lua_version: &str) -> BundleOptions {
+    BundleOptions {
+        entry,
+        search_paths,
+        lua_version: lua_version.to_string(),
         inject_top: None,
         inject_bottom: None,
-    }).unwrap();
+        externals: vec![],
+        overrides: vec![],
+    }
+}
 
-    // c should appear exactly once
+#[test]
+fn test_simple_bundle() {
+    let out = bundle(default_options(
+        fixture("simple/main.lua"),
+        vec![fixture("simple")],
+        "54",
+    )).unwrap();
+    assert!(out.contains("__modules[\"foo\"]"));
+}
+
+#[test]
+fn test_diamond_bundle() {
+    let out = bundle(default_options(
+        fixture("diamond/main.lua"),
+        vec![fixture("diamond")],
+        "54",
+    )).unwrap();
     assert_eq!(out.matches("__modules[\"c\"]").count(), 1);
     assert!(out.contains("__modules[\"a\"]"));
     assert!(out.contains("__modules[\"b\"]"));
@@ -25,15 +43,11 @@ fn test_diamond_bundle() {
 
 #[test]
 fn test_nested_bundle() {
-    let out = bundle(BundleOptions {
-        entry: fixture("nested/main.lua"),
-        search_paths: vec![fixture("nested")],
-        lua_version: "54".to_string(),
-        inject_top: None,
-        inject_bottom: None,
-    }).unwrap();
-
-    // lib.utils should appear before lib since lib depends on it
+    let out = bundle(default_options(
+        fixture("nested/main.lua"),
+        vec![fixture("nested")],
+        "54",
+    )).unwrap();
     assert!(out.contains("__modules[\"lib.utils\"]"));
     assert!(out.contains("__modules[\"lib\"]"));
     let utils_pos = out.find("__modules[\"lib.utils\"]").unwrap();
@@ -42,27 +56,61 @@ fn test_nested_bundle() {
 }
 
 #[test]
-fn test_simple_bundle() {
-    let out = bundle(BundleOptions {
-        entry: fixture("simple/main.lua"),
-        search_paths: vec![fixture("simple")],
-        lua_version: "54".to_string(),
-        inject_top: None,
-        inject_bottom: None,
-    }).unwrap();
-
+fn test_lua55_bundle() {
+    let out = bundle(default_options(
+        fixture("lua55/main.lua"),
+        vec![fixture("lua55")],
+        "55",
+    )).unwrap();
     assert!(out.contains("__modules[\"foo\"]"));
 }
 
 #[test]
-fn test_lua55_bundle() {
+fn test_external_not_bundled() {
     let out = bundle(BundleOptions {
-        entry: fixture("lua55/main.lua"),
-        search_paths: vec![fixture("lua55")],
-        lua_version: "55".to_string(),
+        entry: fixture("external/main.lua"),
+        search_paths: vec![fixture("external")],
+        lua_version: "54".to_string(),
         inject_top: None,
         inject_bottom: None,
+        externals: vec!["socket".to_string(), "lunar/*".to_string()],
+        overrides: vec![],
     }).unwrap();
 
-    assert!(out.contains("__modules[\"foo\"]"));
+    assert!(!out.contains("__modules[\"socket\"]"));
+    assert!(out.contains("__modules[\"utils\"]"));
+    assert!(out.contains(r#"require("socket")"#));
+}
+
+#[test]
+fn test_wildcard_external_not_bundled() {
+    let out = bundle(BundleOptions {
+        entry: fixture("external/main.lua"),
+        search_paths: vec![fixture("external")],
+        lua_version: "54".to_string(),
+        inject_top: None,
+        inject_bottom: None,
+        externals: vec!["socket".to_string(), "lunar/*".to_string()],
+        overrides: vec![],
+    }).unwrap();
+
+    assert!(!out.contains("__modules[\"lunar/router\"]"));
+    assert!(out.contains("__modules[\"utils\"]"));
+    assert!(out.contains(r#"require("lunar/router")"#));
+}
+
+#[test]
+fn test_unresolved_non_external_errors() {
+    let result = bundle(BundleOptions {
+        entry: fixture("external/main.lua"),
+        search_paths: vec![fixture("external")],
+        lua_version: "54".to_string(),
+        inject_top: None,
+        inject_bottom: None,
+        externals: vec![], // socket not marked external
+        overrides: vec![],
+    });
+
+    // should error since socket and lunar/router can't be resolved
+    assert!(result.is_err());
 }

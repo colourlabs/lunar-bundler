@@ -13,10 +13,11 @@ pub struct BundleOptions {
     pub lua_version: String,
     pub inject_top: Option<std::path::PathBuf>,
     pub inject_bottom: Option<std::path::PathBuf>,
+    pub externals: Vec<String>,
+    pub overrides: Vec<(String, std::path::PathBuf)>,
 }
 
 pub fn bundle(opts: BundleOptions) -> anyhow::Result<String> {
-    // read injection files if provided
     let inject_top = opts.inject_top
         .map(|p| std::fs::read_to_string(p))
         .transpose()?;
@@ -30,5 +31,7 @@ pub fn bundle(opts: BundleOptions) -> anyhow::Result<String> {
         search_paths: opts.search_paths,
         inject_top,
         inject_bottom,
+        externals: opts.externals,
+        overrides: opts.overrides,
     })
 }

@@ -51,12 +51,29 @@ fn main() -> Result<()> {
         search_paths.insert(0, parent.to_path_buf());
     }
 
+    let externals = config
+        .resolve
+        .as_ref()
+        .and_then(|r| r.externals.clone())
+        .unwrap_or_default();
+
+    let overrides = config
+        .resolve
+        .as_ref()
+        .and_then(|r| r.overrides.clone())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|o| (o.module, o.path))
+        .collect();
+
     let bundle = lunar_bundler::bundle(lunar_bundler::BundleOptions {
         entry,
         search_paths,
         lua_version: args.lua_version,
         inject_top: args.inject_top,
         inject_bottom: args.inject_bottom,
+        externals,
+        overrides,
     })?;
 
     let output = args

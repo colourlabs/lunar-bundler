@@ -27,12 +27,13 @@ pub struct InjectConfig {
     pub bottom: Option<PathBuf>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct ResolveConfig {
     pub overrides: Option<Vec<ModuleOverride>>,
+    pub externals: Option<Vec<String>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ModuleOverride {
     pub module: String,
     pub path: PathBuf,

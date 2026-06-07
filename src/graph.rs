@@ -1,9 +1,9 @@
-use anyhow::{Result};
+use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use crate::error::BundlerError;
-use crate::resolver::Resolver;
+use crate::resolver::{ResolveResult, Resolver};
 use crate::scanner::scan_requires;
 
 #[cfg(test)]
@@ -18,7 +18,7 @@ mod tests {
         fs::write(dir.path().join("main.lua"), r#"local x = require("foo")"#).unwrap();
         fs::write(dir.path().join("foo.lua"), "return {}").unwrap();
 
-        let resolver = Resolver::new(vec![dir.path().to_path_buf()]);
+        let resolver = Resolver::new(vec![dir.path().to_path_buf()], vec![], HashMap::new());
         let graph = build_graph(dir.path().join("main.lua"), &resolver).unwrap();
 
         assert_eq!(graph.modules.len(), 2);
@@ -32,7 +32,7 @@ mod tests {
         fs::write(dir.path().join("a.lua"), r#"local x = require("b")"#).unwrap();
         fs::write(dir.path().join("b.lua"), r#"local x = require("a")"#).unwrap();
 
-        let resolver = Resolver::new(vec![dir.path().to_path_buf()]);
+        let resolver = Resolver::new(vec![dir.path().to_path_buf()], vec![], HashMap::new());
         let result = build_graph(dir.path().join("a.lua"), &resolver);
 
         assert!(result.is_err());
@@ -53,7 +53,7 @@ mod tests {
         )
         .unwrap();
 
-        let resolver = Resolver::new(vec![dir.path().to_path_buf()]);
+        let resolver = Resolver::new(vec![dir.path().to_path_buf()], vec![], HashMap::new());
         let result = build_graph(dir.path().join("main.lua"), &resolver);
 
         assert!(result.is_err());
@@ -83,7 +83,7 @@ mod tests {
         .unwrap();
         fs::write(dir.path().join("c.lua"), "return {}").unwrap();
 
-        let resolver = Resolver::new(vec![dir.path().to_path_buf()]);
+        let resolver = Resolver::new(vec![dir.path().to_path_buf()], vec![], HashMap::new());
         let graph = build_graph(dir.path().join("main.lua"), &resolver).unwrap();
 
         // c should only be included once despite being required twice
@@ -164,7 +164,8 @@ fn visit(
     if in_stack.contains(path) {
         return Err(BundlerError::CircularDependency {
             cycle: path.display().to_string(),
-        }.into());
+        }
+        .into());
     }
 
     in_stack.insert(path.clone());
@@ -177,11 +178,19 @@ fn visit(
 
     for req in requires {
         match resolver.resolve(&req) {
-            Some(dep_path) => visit(&dep_path, &req, resolver, visited, in_stack, order)?,
-            None => return Err(BundlerError::UnresolvedModule {
-                module: req.clone(),
-                requirer: path.clone(),
-            }.into()),
+            ResolveResult::Found(dep_path) => {
+                visit(&dep_path, &req, resolver, visited, in_stack, order)?
+            }
+            ResolveResult::External => {
+                // skip - leave require() call intact for runtime
+            }
+            ResolveResult::NotFound => {
+                return Err(BundlerError::UnresolvedModule {
+                    module: req.clone(),
+                    requirer: path.clone(),
+                }
+                .into());
+            }
         }
     }
 
