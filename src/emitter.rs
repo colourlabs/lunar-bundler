@@ -83,7 +83,10 @@ pub struct Emitter {
 
 impl Emitter {
     pub fn new(inject_top: Option<String>, inject_bottom: Option<String>) -> Self {
-        Self { inject_top, inject_bottom }
+        Self {
+            inject_top,
+            inject_bottom,
+        }
     }
 
     pub fn emit(&self, graph: &DependencyGraph) -> String {
@@ -99,7 +102,8 @@ impl Emitter {
         }
 
         // runtime shim
-        out.push_str(r#"
+        out.push_str(
+            r#"
 local __modules = {}
 local __require = require
 local function require(name)
@@ -108,7 +112,8 @@ local function require(name)
     end
     return __require(name)
 end
-"#);
+"#,
+        );
 
         // emit each dependency as a wrapped module, entry point last
         let (entry, deps) = graph.modules.split_last().unwrap();

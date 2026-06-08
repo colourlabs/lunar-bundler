@@ -11,20 +11,29 @@ mod tests {
 
     #[test]
     fn test_simple_require() {
-        let result = scan_requires(r#"local x = require("foo.bar")"#, &PathBuf::from("test.lua")).unwrap();
+        let result = scan_requires(
+            r#"local x = require("foo.bar")"#,
+            &PathBuf::from("test.lua"),
+        )
+        .unwrap();
         assert_eq!(result.requires, vec!["foo.bar"]);
         assert!(result.dynamic_requires.is_empty());
     }
 
     #[test]
     fn test_single_quotes() {
-        let result = scan_requires(r#"local x = require('foo.bar')"#, &PathBuf::from("test.lua")).unwrap();
+        let result = scan_requires(
+            r#"local x = require('foo.bar')"#,
+            &PathBuf::from("test.lua"),
+        )
+        .unwrap();
         assert_eq!(result.requires, vec!["foo.bar"]);
     }
 
     #[test]
     fn test_dynamic_require_tracked() {
-        let result = scan_requires(r#"local x = require(some_var)"#, &PathBuf::from("test.lua")).unwrap();
+        let result =
+            scan_requires(r#"local x = require(some_var)"#, &PathBuf::from("test.lua")).unwrap();
         assert!(result.requires.is_empty());
         assert_eq!(result.dynamic_requires.len(), 1);
         assert!(result.dynamic_requires[0].contains("test.lua"));
@@ -114,11 +123,10 @@ impl Visitor for RequireVisitor {
 
 pub fn scan_requires(source: &str, path: &PathBuf) -> Result<ScanResult> {
     let preprocessed = crate::preprocessor::preprocess(source);
-    let ast = full_moon::parse(&preprocessed)
-        .map_err(|e| BundlerError::ParseError {
-            path: path.clone(),
-            reason: format!("{:?}", e),
-        })?;
+    let ast = full_moon::parse(&preprocessed).map_err(|e| BundlerError::ParseError {
+        path: path.clone(),
+        reason: format!("{:?}", e),
+    })?;
     let mut visitor = RequireVisitor {
         requires: vec![],
         dynamic_requires: vec![],

@@ -39,7 +39,10 @@ mod tests {
     fn test_not_found() {
         let dir = make_temp_dir();
         let resolver = Resolver::with_paths(vec![dir.path().to_path_buf()]);
-        assert!(matches!(resolver.resolve("does.not.exist"), ResolveResult::NotFound));
+        assert!(matches!(
+            resolver.resolve("does.not.exist"),
+            ResolveResult::NotFound
+        ));
     }
 
     #[test]
@@ -48,10 +51,8 @@ mod tests {
         let dir2 = make_temp_dir();
         fs::write(dir2.path().join("foo.lua"), "").unwrap();
 
-        let resolver = Resolver::with_paths(vec![
-            dir1.path().to_path_buf(),
-            dir2.path().to_path_buf(),
-        ]);
+        let resolver =
+            Resolver::with_paths(vec![dir1.path().to_path_buf(), dir2.path().to_path_buf()]);
         assert!(matches!(
             resolver.resolve("foo"),
             ResolveResult::Found(p) if p == dir2.path().join("foo.lua")
@@ -66,7 +67,10 @@ mod tests {
             vec!["socket".to_string()],
             HashMap::new(),
         );
-        assert!(matches!(resolver.resolve("socket"), ResolveResult::External));
+        assert!(matches!(
+            resolver.resolve("socket"),
+            ResolveResult::External
+        ));
     }
 
     #[test]
@@ -77,8 +81,14 @@ mod tests {
             vec!["lunar/*".to_string()],
             HashMap::new(),
         );
-        assert!(matches!(resolver.resolve("lunar/router"), ResolveResult::External));
-        assert!(matches!(resolver.resolve("lunar/middleware"), ResolveResult::External));
+        assert!(matches!(
+            resolver.resolve("lunar/router"),
+            ResolveResult::External
+        ));
+        assert!(matches!(
+            resolver.resolve("lunar/middleware"),
+            ResolveResult::External
+        ));
     }
 }
 
@@ -100,7 +110,11 @@ impl Resolver {
         externals: Vec<String>,
         overrides: HashMap<String, PathBuf>,
     ) -> Self {
-        Self { search_paths, externals, overrides }
+        Self {
+            search_paths,
+            externals,
+            overrides,
+        }
     }
 
     pub fn with_paths(search_paths: Vec<PathBuf>) -> Self {
@@ -108,24 +122,32 @@ impl Resolver {
     }
 
     pub fn resolve(&self, module: &str) -> ResolveResult {
-        // check externals first
         if self.is_external(module) {
+            tracing::debug!(module, "skipping external module");
             return ResolveResult::External;
         }
 
-        // check overrides
         if let Some(path) = self.overrides.get(module) {
+            tracing::debug!(module, path = %path.display(), "resolved via override");
             return ResolveResult::Found(path.clone());
         }
 
-        // normal search path resolution
-        let as_path = module.replace('.', "/");
+        let as_path = module.replace(['.', '/'], std::path::MAIN_SEPARATOR_STR);
+
         for base in &self.search_paths {
             let candidate = base.join(format!("{}.lua", as_path));
             if candidate.exists() {
+                if crate::luarocks::is_native_module(&candidate) {
+                    tracing::warn!(
+                        module,
+                        "native C module cannot be bundled!, treating as external"
+                    );
+                    return ResolveResult::External;
+                }
                 return ResolveResult::Found(candidate);
             }
-            let candidate = base.join(format!("{}/init.lua", as_path));
+
+            let candidate = base.join(format!("{}", as_path)).join("init.lua");
             if candidate.exists() {
                 return ResolveResult::Found(candidate);
             }

@@ -7,21 +7,13 @@ pub enum BundlerError {
     EntryNotFound(PathBuf),
 
     #[error("cannot resolve module '{module}' required by '{requirer}'")]
-    UnresolvedModule {
-        module: String,
-        requirer: PathBuf,
-    },
+    UnresolvedModule { module: String, requirer: PathBuf },
 
     #[error("circular dependency detected: {cycle}")]
-    CircularDependency {
-        cycle: String,
-    },
+    CircularDependency { cycle: String },
 
     #[error("failed to parse '{path}': {reason}")]
-    ParseError {
-        path: PathBuf,
-        reason: String,
-    },
+    ParseError { path: PathBuf, reason: String },
 
     #[error("failed to read '{path}': {source}")]
     IoError {

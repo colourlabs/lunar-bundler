@@ -14,6 +14,7 @@ pub struct BundleConfig {
     pub entry: Option<PathBuf>,
     pub output: Option<PathBuf>,
     pub lua_version: Option<String>,
+    pub luarocks: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,8 +45,81 @@ impl Config {
         if !path.exists() {
             return Ok(Config::default());
         }
+
         let contents = std::fs::read_to_string(path)?;
-        let config = toml::from_str(&contents)?;
+
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+
+        let config = match ext {
+            "json" | "jsonc" => {
+                let stripped = strip_jsonc_comments(&contents);
+                serde_json::from_str(&stripped)
+                    .map_err(|e| anyhow::anyhow!("failed to parse config: {}", e))?
+            }
+            _ => {
+                // default to toml
+                toml::from_str(&contents)
+                    .map_err(|e| anyhow::anyhow!("failed to parse config: {}", e))?
+            }
+        };
+
         Ok(config)
     }
+}
+
+fn strip_jsonc_comments(source: &str) -> String {
+    let mut out = String::with_capacity(source.len());
+    let mut chars = source.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        match c {
+            // string literal - pass through without stripping
+            '"' => {
+                out.push(c);
+                while let Some(s) = chars.next() {
+                    out.push(s);
+                    if s == '\\' {
+                        // escaped char - push next unconditionally
+                        if let Some(escaped) = chars.next() {
+                            out.push(escaped);
+                        }
+                    } else if s == '"' {
+                        break;
+                    }
+                }
+            }
+            '/' => match chars.peek() {
+                Some('/') => {
+                    // line comment - skip to end of line
+                    chars.next();
+                    for c in chars.by_ref() {
+                        if c == '\n' {
+                            out.push('\n');
+                            break;
+                        }
+                    }
+                }
+                Some('*') => {
+                    // block comment - skip to */
+                    chars.next();
+                    while let Some(c) = chars.next() {
+                        if c == '*' {
+                            if chars.peek() == Some(&'/') {
+                                chars.next();
+                                break;
+                            }
+                        }
+                        // preserve newlines so line numbers stay accurate
+                        if c == '\n' {
+                            out.push('\n');
+                        }
+                    }
+                }
+                _ => out.push(c),
+            },
+            _ => out.push(c),
+        }
+    }
+
+    out
 }
