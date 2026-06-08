@@ -58,7 +58,7 @@ fn main() -> Result<()> {
 
     let config_path = args.config.unwrap_or_else(|| {
         let toml = PathBuf::from("lunar_bundler.toml");
-        let jsonc = PathBuf::from("lunar_bunlder.jsonc");
+        let jsonc = PathBuf::from("lunar_bundler.jsonc");
         if toml.exists() {
             toml
         } else if jsonc.exists() {
