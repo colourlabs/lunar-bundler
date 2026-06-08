@@ -1,3 +1,8 @@
+//! Builds a dependency graph from a Lua entry point.
+//!
+//! Uses post-order DFS to produce a topologically sorted module list
+//! where each module appears before any module that depends on it.
+//! Cycle detection uses an in-stack set during traversal.
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};

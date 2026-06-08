@@ -83,7 +83,7 @@ overrides = [
     "bundle": {
         "entry": "src/main.lua",
         "output": "dist/bundle.lua",
-        "lua_version": "54",
+        "lua_version": "54", // corresponds to Lua 5.4
         "luarocks": false
     },
     // search paths for require() resolution

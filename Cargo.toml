@@ -1,7 +1,13 @@
 [package]
 name = "lunar-bundler"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
+description = "A Lua bundler that resolves require() calls into a single file"
+license = "Apache-2.0"
+repository = "https://github.com/colourlabs/lunar-bundler"
+readme = "README.md"
+keywords = ["lua", "bundler", "build-tool"]
+categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
 anyhow = "1.0.102"

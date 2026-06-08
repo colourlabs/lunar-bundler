@@ -1,3 +1,34 @@
+//! LuaRocks path discovery for bundling pure-Lua packages.
+//!
+//! LuaRocks is the package manager for Lua. This module discovers where
+//! LuaRocks has installed packages so the bundler can resolve and inline
+//! them alongside your project's own modules.
+//!
+//! ## how paths are discovered
+//!
+//! paths are resolved in this order:
+//!
+//! 1. `luarocks path --lr-path` asks LuaRocks directly, most reliable
+//! 2. well-known install locations for the current platform
+//! 3. user-local paths (`~/.luarocks` on unix, `AppData` on windows)
+//!
+//! ## limitations
+//!
+//! only pure-Lua packages can be bundled. native C modules (`.so`, `.dll`,
+//! `.dylib`) are automatically detected and treated as externals with a
+//! warning. examples of native modules that cannot be bundled:
+//! - `luasocket`
+//! - `luafilesystem`
+//! - `lpeg`
+//!
+//! ## platform support
+//!
+//! - linux: `/usr/local/share/lua/<version>`, `/usr/share/lua/<version>`
+//! - macos: homebrew (`/opt/homebrew`), macports (`/opt/local`), `/usr/local`
+//! - windows: `%APPDATA%/LuaRocks`, `C:/LuaRocks`, `C:/Program Files/Lua`
+//!
+//! if LuaRocks is not installed, `discover_paths` returns an empty vec
+//! and the bundler emits a warning.
 use std::path::PathBuf;
 
 pub fn discover_paths(lua_version: &str) -> Vec<PathBuf> {

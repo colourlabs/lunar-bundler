@@ -1,3 +1,7 @@
+//! Scans Lua source for `require()` calls using the full-moon AST parser.
+//!
+//! Only static string literal requires are resolved. Dynamic requires
+//! like `require(some_var)` are tracked separately and warned about.
 use std::path::{Path};
 
 use anyhow::Result;

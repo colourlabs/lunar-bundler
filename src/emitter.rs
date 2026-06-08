@@ -1,3 +1,9 @@
+//! Emits the final bundle from a resolved dependency graph.
+//!
+//! Each dependency is wrapped in an IIFE assigned to `__modules["name"]`.
+//! The entry point is inlined raw at the bottom. A small runtime shim
+//! replaces `require()` to look up modules from `__modules` before
+//! falling back to the real `require()` for unbundled modules.
 use crate::graph::{DependencyGraph, Module};
 
 #[cfg(test)]

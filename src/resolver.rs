@@ -1,3 +1,10 @@
+//! Resolves Lua module names to file paths on disk.
+//! 
+//! Follows Lua's standard module resolution rules:
+//! - "foo.bar" resolves to "foo/bar.lua" or "foo/bar/init.lua"
+//! - searches each path in order, returning the first match
+//! - externals are checked before file resolution
+//! - overrides are checked before search paths
 use std::{collections::HashMap, path::PathBuf};
 
 #[cfg(test)]
