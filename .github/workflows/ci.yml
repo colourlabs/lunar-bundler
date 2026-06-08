@@ -60,25 +60,39 @@ jobs:
     name: luarocks integration
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+        - uses: actions/checkout@v4
 
-      - name: install rust
-        uses: dtolnay/rust-toolchain@stable
+        - name: install rust
+          uses: dtolnay/rust-toolchain@stable
 
-      - name: cache
-        uses: Swatinem/rust-cache@v2
+        - name: cache rust
+          uses: Swatinem/rust-cache@v2
 
-      - name: install lua and luarocks
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y lua5.4 luarocks
+        - name: install lua and luarocks
+          run: |
+            sudo apt-get update
+            sudo apt-get install -y lua5.4 liblua5.4-dev luarocks
 
-      - name: install argparse
-        run: luarocks install argparse
+        - name: configure luarocks for lua 5.4
+          run: |
+            luarocks config lua_version 5.4
+            luarocks config lua_interpreter lua5.4
 
-      - name: run luarocks tests
-        run: cargo test -- --include-ignored
+        - name: install argparse locally
+          run: luarocks install --local argparse
 
+        - name: set luarocks paths
+          run: |
+            echo "LUA_PATH=$(luarocks path --lr-path)" >> $GITHUB_ENV
+            echo "LUA_CPATH=$(luarocks path --lr-cpath)" >> $GITHUB_ENV
+            echo "PATH=$HOME/.luarocks/bin:$PATH" >> $GITHUB_ENV
+
+        - name: verify argparse installed
+          run: lua5.4 -e "require('argparse'); print('argparse ok')"
+
+        - name: run luarocks tests
+          run: cargo test -- --include-ignored 
+          
   release:
     name: release build
     runs-on: ubuntu-latest
