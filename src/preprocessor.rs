@@ -1,5 +1,5 @@
 //! Preprocesses Lua code before being bundled
-//! 
+//!
 //! changes -
 //!   Removes `global` syntax from Lua 5.5 code
 pub fn preprocess(source: &str) -> String {

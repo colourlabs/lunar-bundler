@@ -148,11 +148,10 @@ fn strip_jsonc_comments(source: &str) -> String {
                     // block comment - skip to */
                     chars.next();
                     while let Some(c) = chars.next() {
-                        if c == '*'
-                            && chars.peek() == Some(&'/') {
-                                chars.next();
-                                break;
-                            }
+                        if c == '*' && chars.peek() == Some(&'/') {
+                            chars.next();
+                            break;
+                        }
                         // preserve newlines so line numbers stay accurate
                         if c == '\n' {
                             out.push('\n');

@@ -2,7 +2,7 @@
 //!
 //! Only static string literal requires are resolved. Dynamic requires
 //! like `require(some_var)` are tracked separately and warned about.
-use std::path::{Path};
+use std::path::Path;
 
 use anyhow::Result;
 use full_moon::{ast, visitors::Visitor};
@@ -11,8 +11,8 @@ use crate::error::BundlerError;
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn test_simple_require() {
