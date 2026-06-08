@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::error::BundlerError;
 use crate::resolver::{ResolveResult, Resolver};
@@ -145,7 +145,7 @@ pub fn build_graph(entry: PathBuf, resolver: &Resolver) -> Result<DependencyGrap
 }
 
 fn visit(
-    path: &PathBuf,
+    path: &Path,
     module_name: &str,
     resolver: &Resolver,
     visited: &mut HashMap<PathBuf, String>,
@@ -153,7 +153,7 @@ fn visit(
     order: &mut Vec<PathBuf>,
 ) -> Result<()> {
     let path = &path.canonicalize().map_err(|e| BundlerError::IoError {
-        path: path.clone(),
+        path: path.to_path_buf(),
         source: e,
     })?;
 

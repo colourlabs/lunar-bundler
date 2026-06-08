@@ -147,7 +147,7 @@ impl Resolver {
                 return ResolveResult::Found(candidate);
             }
 
-            let candidate = base.join(format!("{}", as_path)).join("init.lua");
+            let candidate = base.join(&as_path).join("init.lua");
             if candidate.exists() {
                 return ResolveResult::Found(candidate);
             }

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path};
 
 use anyhow::Result;
 use full_moon::{ast, visitors::Visitor};
@@ -7,6 +7,7 @@ use crate::error::BundlerError;
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
     use super::*;
 
     #[test]
@@ -121,10 +122,10 @@ impl Visitor for RequireVisitor {
     }
 }
 
-pub fn scan_requires(source: &str, path: &PathBuf) -> Result<ScanResult> {
+pub fn scan_requires(source: &str, path: &Path) -> Result<ScanResult> {
     let preprocessed = crate::preprocessor::preprocess(source);
     let ast = full_moon::parse(&preprocessed).map_err(|e| BundlerError::ParseError {
-        path: path.clone(),
+        path: path.to_path_buf(),
         reason: format!("{:?}", e),
     })?;
     let mut visitor = RequireVisitor {

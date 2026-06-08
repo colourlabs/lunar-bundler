@@ -29,12 +29,12 @@ pub struct BundleResult {
 pub fn bundle(opts: BundleOptions) -> anyhow::Result<BundleResult> {
     let inject_top = opts
         .inject_top
-        .map(|p| std::fs::read_to_string(p))
+        .map(std::fs::read_to_string)
         .transpose()?;
 
     let inject_bottom = opts
         .inject_bottom
-        .map(|p| std::fs::read_to_string(p))
+        .map(std::fs::read_to_string)
         .transpose()?;
 
     let mut search_paths = opts.search_paths;
