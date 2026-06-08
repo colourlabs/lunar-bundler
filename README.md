@@ -1,6 +1,6 @@
 # lunar-bundler
 
-A probably fast Lua bundler written in Rust. Resolves `require()` calls and bundles your Lua project into a single file. Supports Lua 5.1 (LuaJIT included) through 5.5 (not tested on Luau). Works anywhere and any project.
+A Lua bundler written in Rust. Resolves `require()` calls and bundles your Lua project into a single file. Supports Lua 5.1 (LuaJIT included) through 5.5 (not tested on Luau). Works anywhere and any project.
 
 ## installation
 
@@ -133,4 +133,4 @@ dynamic requires (`require(some_variable)`) are warned about but not errors - th
 
 ## status
 
-core bundling works. not yet published to crates.io.
+core bundling works. not yet published to crates.io due to `full-moon` dependency using a git fork for Lua 5.5 support.
