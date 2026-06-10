@@ -148,7 +148,9 @@ fn test_moonscript_loader() {
             .exists();
 
     if !has_moonc {
-        eprintln!("skipping: moonscript not installed (install with `luarocks install moonscript`)");
+        eprintln!(
+            "skipping: moonscript not installed (install with `luarocks install moonscript`)"
+        );
         return;
     }
 
@@ -156,7 +158,10 @@ fn test_moonscript_loader() {
         entry: fixture("moonscript/main.lua"),
         search_paths: vec![fixture("moonscript")],
         lua_version: "54".to_string(),
-        loaders: vec![("*.moon".to_string(), vec![lunar_bundler::loader::moonscript_loader()])],
+        loaders: vec![(
+            "*.moon".to_string(),
+            vec![lunar_bundler::loader::moonscript_loader()],
+        )],
         resolve_extensions: vec!["moon".to_string(), "lua".to_string()],
         ..Default::default()
     })
@@ -164,12 +169,24 @@ fn test_moonscript_loader() {
     .output;
 
     // moonscript class -> Lua metatable should be compiled
-    assert!(!out.contains("class Greeting"), "raw Moonscript should not appear");
-    assert!(out.contains("local Greeting"), "compiled Lua should have local Greeting");
-    assert!(out.contains("hello = function"), "compiled method should exist");
+    assert!(
+        !out.contains("class Greeting"),
+        "raw Moonscript should not appear"
+    );
+    assert!(
+        out.contains("local Greeting"),
+        "compiled Lua should have local Greeting"
+    );
+    assert!(
+        out.contains("hello = function"),
+        "compiled method should exist"
+    );
 
     // plain .lua file should pass through unmodified
-    assert!(out.contains("function M.capitalize"), "plain lua should be present");
+    assert!(
+        out.contains("function M.capitalize"),
+        "plain lua should be present"
+    );
 
     // modules should be present in __modules
     assert!(out.contains("__modules[\"greeting\"]"));
@@ -188,10 +205,16 @@ fn test_production_minification() {
     .unwrap();
 
     // In production: no sourceMappingURL comment
-    assert!(!out.output.contains("sourceMappingURL"), "no dev hint in production");
+    assert!(
+        !out.output.contains("sourceMappingURL"),
+        "no dev hint in production"
+    );
 
     // sourcemap should still be present on the result
-    assert!(out.sourcemap.contains("\"version\":3"), "sourcemap generated in production too");
+    assert!(
+        out.sourcemap.contains("\"version\":3"),
+        "sourcemap generated in production too"
+    );
 }
 
 #[test]
@@ -207,11 +230,14 @@ fn test_dev_sourcemap() {
     .unwrap();
 
     // In dev: sourceMappingURL should be present
-    assert!(out.output.contains("sourceMappingURL"), "dev output has sourcemap hint");
+    assert!(
+        out.output.contains("sourceMappingURL"),
+        "dev output has sourcemap hint"
+    );
 
     // sourcemap should be valid JSON
-    let sm: serde_json::Value = serde_json::from_str(&out.sourcemap)
-        .expect("sourcemap should be valid JSON");
+    let sm: serde_json::Value =
+        serde_json::from_str(&out.sourcemap).expect("sourcemap should be valid JSON");
     assert_eq!(sm["version"], 3);
     assert!(!sm["sources"].as_array().unwrap().is_empty());
     assert!(!sm["mappings"].as_str().unwrap().is_empty());

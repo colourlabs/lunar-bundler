@@ -141,8 +141,7 @@ fn vlq_encode(value: i32) -> String {
         (((-value) as u32) << 1) | 1
     };
 
-    let alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-        .as_bytes();
+    let alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".as_bytes();
 
     let mut out = String::new();
     loop {
@@ -205,7 +204,11 @@ mod tests {
         let mappings_start = json.find("\"mappings\":\"").unwrap() + 12;
         let mappings_end = json[mappings_start..].find('"').unwrap();
         let mappings = &json[mappings_start..mappings_start + mappings_end];
-        assert_eq!(mappings.matches(';').count() + 1, 8, "one segment per output line");
+        assert_eq!(
+            mappings.matches(';').count() + 1,
+            8,
+            "one segment per output line"
+        );
     }
 
     #[test]

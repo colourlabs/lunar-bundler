@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::str::FromStr;
 
 use full_moon::ast;
 use full_moon::visitors::Visitor;
@@ -41,28 +42,32 @@ impl CompatIssueKind {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "GotoUsed" => Some(Self::GotoUsed),
-            "ConstAttribute" => Some(Self::ConstAttribute),
-            "ToBeClosedAttribute" => Some(Self::ToBeClosedAttribute),
-            "IntegerDivision" => Some(Self::IntegerDivision),
-            "BitwiseOps" => Some(Self::BitwiseOps),
-            "BitwiseNot" => Some(Self::BitwiseNot),
-            "Utf8Library" => Some(Self::Utf8Library),
-            "TableMove" => Some(Self::TableMove),
-            "StringPack" => Some(Self::StringPack),
-            "MathTointeger" => Some(Self::MathTointeger),
-            "MathType" => Some(Self::MathType),
-            "FfiLibrary" => Some(Self::FfiLibrary),
-            "BitLibrary" => Some(Self::BitLibrary),
-            "JitLibrary" => Some(Self::JitLibrary),
-            _ => None,
-        }
-    }
-
     pub fn is_issue_for(&self, target_version: &str) -> bool {
-        !self.supported_in().iter().any(|v| *v == target_version)
+        !self.supported_in().contains(&target_version)
+    }
+}
+
+impl FromStr for CompatIssueKind {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "GotoUsed" => Ok(Self::GotoUsed),
+            "ConstAttribute" => Ok(Self::ConstAttribute),
+            "ToBeClosedAttribute" => Ok(Self::ToBeClosedAttribute),
+            "IntegerDivision" => Ok(Self::IntegerDivision),
+            "BitwiseOps" => Ok(Self::BitwiseOps),
+            "BitwiseNot" => Ok(Self::BitwiseNot),
+            "Utf8Library" => Ok(Self::Utf8Library),
+            "TableMove" => Ok(Self::TableMove),
+            "StringPack" => Ok(Self::StringPack),
+            "MathTointeger" => Ok(Self::MathTointeger),
+            "MathType" => Ok(Self::MathType),
+            "FfiLibrary" => Ok(Self::FfiLibrary),
+            "BitLibrary" => Ok(Self::BitLibrary),
+            "JitLibrary" => Ok(Self::JitLibrary),
+            _ => Err(()),
+        }
     }
 }
 
@@ -108,9 +113,9 @@ pub fn check_compat(
 
 fn get_line_from_expr(expr: &ast::Expression) -> usize {
     match expr {
-        ast::Expression::Number(t)
-        | ast::Expression::String(t)
-        | ast::Expression::Symbol(t) => t.token().start_position().line(),
+        ast::Expression::Number(t) | ast::Expression::String(t) | ast::Expression::Symbol(t) => {
+            t.token().start_position().line()
+        }
         ast::Expression::Var(ast::Var::Name(t)) => t.token().start_position().line(),
         ast::Expression::Var(ast::Var::Expression(ve)) => {
             if let ast::Prefix::Name(t) = ve.prefix() {
@@ -197,12 +202,12 @@ impl Visitor for CompatVisitor {
                 }
             } else {
                 let suffixes: Vec<_> = node.suffixes().collect();
-                if suffixes.len() >= 2 {
-                    if let ast::Suffix::Index(ast::Index::Dot { name, .. }) = &suffixes[0] {
-                        let func_name = name.token().to_string();
-                        if let Some(kind) = self.stdlib_kind(&prefix_str, &func_name) {
-                            self.check(kind, token_line(name));
-                        }
+                if suffixes.len() >= 2
+                    && let ast::Suffix::Index(ast::Index::Dot { name, .. }) = &suffixes[0]
+                {
+                    let func_name = name.token().to_string();
+                    if let Some(kind) = self.stdlib_kind(&prefix_str, &func_name) {
+                        self.check(kind, token_line(name));
                     }
                 }
             }
@@ -227,20 +232,20 @@ impl Visitor for CompatVisitor {
                     _ => {}
                 }
             }
-            ast::Expression::UnaryOperator { unop, expression: _ } => {
-                if let ast::UnOp::Tilde(token) = unop {
-                    self.check(
-                        CompatIssueKind::BitwiseNot,
-                        token.token().start_position().line(),
-                    );
-                }
+            ast::Expression::UnaryOperator {
+                unop: ast::UnOp::Tilde(token),
+                expression: _,
+            } => {
+                self.check(
+                    CompatIssueKind::BitwiseNot,
+                    token.token().start_position().line(),
+                );
             }
             ast::Expression::Var(ast::Var::Expression(ve)) => {
                 if let ast::Prefix::Name(prefix_name) = ve.prefix() {
                     let prefix_str = prefix_name.token().to_string();
                     let mut suffixes = ve.suffixes();
-                    if let Some(ast::Suffix::Index(ast::Index::Dot { name, .. })) =
-                        suffixes.next()
+                    if let Some(ast::Suffix::Index(ast::Index::Dot { name, .. })) = suffixes.next()
                     {
                         let func_name = name.token().to_string();
                         if let Some(kind) = self.stdlib_kind(&prefix_str, &func_name) {
@@ -370,21 +375,13 @@ mod tests {
 
     #[test]
     fn test_ignore_works() {
-        let kinds = check(
-            r#"require("ffi")"#,
-            "51",
-            &[CompatIssueKind::FfiLibrary],
-        );
+        let kinds = check(r#"require("ffi")"#, "51", &[CompatIssueKind::FfiLibrary]);
         assert!(kinds.is_empty());
     }
 
     #[test]
     fn test_goto_detected() {
-        let kinds = check(
-            "::label::\ngoto label\n",
-            "51",
-            &[]
-        );
+        let kinds = check("::label::\ngoto label\n", "51", &[]);
         assert!(kinds.contains(&CompatIssueKind::GotoUsed));
     }
 

@@ -1,6 +1,6 @@
+use crate::BuildMode;
 use crate::graph::{DependencyGraph, Module};
 use crate::sourcemap::SourceMapBuilder;
-use crate::BuildMode;
 
 #[cfg(test)]
 mod tests {
@@ -40,7 +40,11 @@ mod tests {
             modules: vec![make_module("__entry__", "print('hello')")],
         };
 
-        let emitter = Emitter::new(Some("-- injected top".to_string()), None, &BuildMode::Development);
+        let emitter = Emitter::new(
+            Some("-- injected top".to_string()),
+            None,
+            &BuildMode::Development,
+        );
         let (out, _sm) = emitter.emit(&graph);
 
         let top_pos = out.find("-- injected top").unwrap();
@@ -54,7 +58,11 @@ mod tests {
             modules: vec![make_module("__entry__", "print('hello')")],
         };
 
-        let emitter = Emitter::new(None, Some("-- injected bottom".to_string()), &BuildMode::Development);
+        let emitter = Emitter::new(
+            None,
+            Some("-- injected bottom".to_string()),
+            &BuildMode::Development,
+        );
         let (out, _sm) = emitter.emit(&graph);
 
         let entry_pos = out.find("print('hello')").unwrap();
@@ -76,10 +84,18 @@ mod tests {
 
         let wrapper_start = out.find("__modules[\"bar\"]").unwrap();
         let after_wrapper = &out[wrapper_start..];
-        assert!(after_wrapper.starts_with("__modules[\"bar\"] = __module_wrap(\"bar\", \"bar.lua\", function()\n"));
+        assert!(
+            after_wrapper.starts_with(
+                "__modules[\"bar\"] = __module_wrap(\"bar\", \"bar.lua\", function()\n"
+            )
+        );
         let end_pos = after_wrapper.find("end)").unwrap();
         let before_end = &after_wrapper[..end_pos];
-        assert!(before_end.ends_with("\nlocal x = 1\n"), "end) must be on its own line, got: {:?}", &before_end[before_end.len().saturating_sub(20)..]);
+        assert!(
+            before_end.ends_with("\nlocal x = 1\n"),
+            "end) must be on its own line, got: {:?}",
+            &before_end[before_end.len().saturating_sub(20)..]
+        );
     }
 
     #[test]
@@ -99,7 +115,11 @@ mod tests {
         assert!(after_wrapper.starts_with("__modules[\"bar\"] = (function()\n"));
         let end_pos = after_wrapper.find("end)()").unwrap();
         let before_end = &after_wrapper[..end_pos];
-        assert!(before_end.ends_with("\nlocal x = 1\n"), "end)() must be on its own line, got: {:?}", &before_end[before_end.len().saturating_sub(20)..]);
+        assert!(
+            before_end.ends_with("\nlocal x = 1\n"),
+            "end)() must be on its own line, got: {:?}",
+            &before_end[before_end.len().saturating_sub(20)..]
+        );
     }
 
     #[test]
@@ -128,7 +148,10 @@ mod tests {
 
         let emitter = Emitter::new(None, None, &BuildMode::Development);
         let (out, _sm) = emitter.emit(&graph);
-        assert!(out.contains("sourceMappingURL"), "dev mode should include sourceMappingURL hint");
+        assert!(
+            out.contains("sourceMappingURL"),
+            "dev mode should include sourceMappingURL hint"
+        );
     }
 
     #[test]
@@ -139,7 +162,10 @@ mod tests {
 
         let emitter = Emitter::new(None, None, &BuildMode::Production);
         let (out, _sm) = emitter.emit(&graph);
-        assert!(!out.contains("sourceMappingURL"), "production output should not have dev hints");
+        assert!(
+            !out.contains("sourceMappingURL"),
+            "production output should not have dev hints"
+        );
     }
 }
 
@@ -245,10 +271,7 @@ end
 
         // ---- dev shim: sourceMappingURL hint ----
         if self.mode == BuildMode::Development {
-            out.push_str(&format!(
-                "--# sourceMappingURL={}.map\n",
-                output_name
-            ));
+            out.push_str(&format!("--# sourceMappingURL={}.map\n", output_name));
         }
 
         let sm_json = sm.to_json();
@@ -273,7 +296,10 @@ end
 
         // __modules["name"] = (function()\n  or __module_wrap(...  in dev mode
         let header = if self.mode == BuildMode::Development {
-            let escaped_name = module.module_name.replace('\\', "\\\\").replace('"', "\\\"");
+            let escaped_name = module
+                .module_name
+                .replace('\\', "\\\\")
+                .replace('"', "\\\"");
             let escaped_path = path_str.replace('\\', "\\\\").replace('"', "\\\"");
             format!(
                 "__modules[\"{name}\"] = __module_wrap(\"{name}\", \"{path}\", function()\n",
@@ -281,7 +307,10 @@ end
                 path = escaped_path,
             )
         } else {
-            format!("__modules[\"{name}\"] = (function()\n", name = module.module_name)
+            format!(
+                "__modules[\"{name}\"] = (function()\n",
+                name = module.module_name
+            )
         };
         out.push_str(&header);
         lines_used += 1;

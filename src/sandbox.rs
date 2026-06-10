@@ -47,7 +47,11 @@ pub fn check_sandbox(source: &str, deny: &[String]) -> Vec<SandboxViolation> {
     visitor.violations
 }
 
-fn check_name(violations: &mut Vec<SandboxViolation>, deny: &HashSet<String>, token_ref: &full_moon::tokenizer::TokenReference) {
+fn check_name(
+    violations: &mut Vec<SandboxViolation>,
+    deny: &HashSet<String>,
+    token_ref: &full_moon::tokenizer::TokenReference,
+) {
     let name_str = token_ref.token().to_string();
     if deny.contains(&name_str) {
         let line = token_ref.token().start_position().line();
@@ -71,19 +75,17 @@ impl Visitor for SandboxVisitor {
                 check_name(&mut self.violations, &self.deny, token_ref);
             }
             // Complex expression like os.execute() or a.b
-            ast::Expression::Var(var) => {
-                match var {
-                    ast::Var::Name(token_ref) => {
+            ast::Expression::Var(var) => match var {
+                ast::Var::Name(token_ref) => {
+                    check_name(&mut self.violations, &self.deny, token_ref);
+                }
+                ast::Var::Expression(ve) => {
+                    if let ast::Prefix::Name(token_ref) = ve.prefix() {
                         check_name(&mut self.violations, &self.deny, token_ref);
                     }
-                    ast::Var::Expression(ve) => {
-                        if let ast::Prefix::Name(token_ref) = ve.prefix() {
-                            check_name(&mut self.violations, &self.deny, token_ref);
-                        }
-                    }
-                    _ => {}
                 }
-            }
+                _ => {}
+            },
             _ => {}
         }
     }

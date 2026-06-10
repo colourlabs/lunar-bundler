@@ -11,9 +11,8 @@ pub fn teal_loader() -> Loader {
         let tl_path = dir.path().join("input.tl");
         let lua_path = dir.path().join("input.lua");
 
-        std::fs::write(&tl_path, &ctx.source).map_err(|e| {
-            anyhow::anyhow!("failed to write temp .tl file: {}", e)
-        })?;
+        std::fs::write(&tl_path, &ctx.source)
+            .map_err(|e| anyhow::anyhow!("failed to write temp .tl file: {}", e))?;
 
         let output = std::process::Command::new("tl")
             .arg("gen")
@@ -26,9 +25,8 @@ pub fn teal_loader() -> Loader {
             anyhow::bail!("tl gen failed:\n{}", stderr.trim());
         }
 
-        let result = std::fs::read_to_string(&lua_path).map_err(|e| {
-            anyhow::anyhow!("tl did not produce output .lua file: {}", e)
-        })?;
+        let result = std::fs::read_to_string(&lua_path)
+            .map_err(|e| anyhow::anyhow!("tl did not produce output .lua file: {}", e))?;
 
         Ok(result)
     })
@@ -42,9 +40,8 @@ pub fn moonscript_loader() -> Loader {
         let moon_path = dir.path().join("input.moon");
         let lua_path = dir.path().join("input.lua");
 
-        std::fs::write(&moon_path, &ctx.source).map_err(|e| {
-            anyhow::anyhow!("failed to write temp .moon file: {}", e)
-        })?;
+        std::fs::write(&moon_path, &ctx.source)
+            .map_err(|e| anyhow::anyhow!("failed to write temp .moon file: {}", e))?;
 
         let output = std::process::Command::new("moonc")
             .arg(&moon_path)
@@ -56,9 +53,8 @@ pub fn moonscript_loader() -> Loader {
             anyhow::bail!("moonc failed:\n{}", stderr.trim());
         }
 
-        let result = std::fs::read_to_string(&lua_path).map_err(|e| {
-            anyhow::anyhow!("moonc did not produce output .lua file: {}", e)
-        })?;
+        let result = std::fs::read_to_string(&lua_path)
+            .map_err(|e| anyhow::anyhow!("moonc did not produce output .lua file: {}", e))?;
 
         Ok(result)
     })

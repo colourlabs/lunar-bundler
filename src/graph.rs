@@ -21,7 +21,13 @@ mod tests {
         fs::write(dir.path().join("foo.lua"), "return {}").unwrap();
 
         let resolver = Resolver::new(vec![dir.path().to_path_buf()], vec![], HashMap::new());
-        let graph = build_graph(dir.path().join("main.lua"), &resolver, &[], &BuildMode::Development).unwrap();
+        let graph = build_graph(
+            dir.path().join("main.lua"),
+            &resolver,
+            &[],
+            &BuildMode::Development,
+        )
+        .unwrap();
 
         assert_eq!(graph.modules.len(), 2);
         assert_eq!(graph.modules[0].module_name, "foo");
@@ -35,7 +41,12 @@ mod tests {
         fs::write(dir.path().join("b.lua"), r#"local x = require("a")"#).unwrap();
 
         let resolver = Resolver::new(vec![dir.path().to_path_buf()], vec![], HashMap::new());
-        let result = build_graph(dir.path().join("a.lua"), &resolver, &[], &BuildMode::Development);
+        let result = build_graph(
+            dir.path().join("a.lua"),
+            &resolver,
+            &[],
+            &BuildMode::Development,
+        );
 
         assert!(result.is_err());
         assert!(
@@ -56,7 +67,12 @@ mod tests {
         .unwrap();
 
         let resolver = Resolver::new(vec![dir.path().to_path_buf()], vec![], HashMap::new());
-        let result = build_graph(dir.path().join("main.lua"), &resolver, &[], &BuildMode::Development);
+        let result = build_graph(
+            dir.path().join("main.lua"),
+            &resolver,
+            &[],
+            &BuildMode::Development,
+        );
 
         assert!(result.is_err());
     }
@@ -85,7 +101,13 @@ mod tests {
         fs::write(dir.path().join("c.lua"), "return {}").unwrap();
 
         let resolver = Resolver::new(vec![dir.path().to_path_buf()], vec![], HashMap::new());
-        let graph = build_graph(dir.path().join("main.lua"), &resolver, &[], &BuildMode::Development).unwrap();
+        let graph = build_graph(
+            dir.path().join("main.lua"),
+            &resolver,
+            &[],
+            &BuildMode::Development,
+        )
+        .unwrap();
 
         let names: Vec<&str> = graph
             .modules
@@ -102,15 +124,23 @@ mod tests {
         fs::write(dir.path().join("main.lua"), r#"local x = require("foo")"#).unwrap();
         fs::write(dir.path().join("foo.lua"), "-- ORIGINAL").unwrap();
 
-        let loader: Loader = Box::new(|ctx| {
-            Ok(ctx.source.replace("ORIGINAL", "TRANSFORMED"))
-        });
+        let loader: Loader = Box::new(|ctx| Ok(ctx.source.replace("ORIGINAL", "TRANSFORMED")));
 
         let rules = vec![("*.lua".to_string(), vec![loader])];
         let resolver = Resolver::new(vec![dir.path().to_path_buf()], vec![], HashMap::new());
-        let graph = build_graph(dir.path().join("main.lua"), &resolver, &rules, &BuildMode::Development).unwrap();
+        let graph = build_graph(
+            dir.path().join("main.lua"),
+            &resolver,
+            &rules,
+            &BuildMode::Development,
+        )
+        .unwrap();
 
-        let foo = graph.modules.iter().find(|m| m.module_name == "foo").unwrap();
+        let foo = graph
+            .modules
+            .iter()
+            .find(|m| m.module_name == "foo")
+            .unwrap();
         assert!(foo.source.contains("TRANSFORMED"));
         assert!(!foo.source.contains("ORIGINAL"));
     }
@@ -158,7 +188,9 @@ pub fn build_graph(
     let modules = order
         .into_iter()
         .map(|path| {
-            let (module_name, source) = visited.remove(&path).expect("missing source for visited module");
+            let (module_name, source) = visited
+                .remove(&path)
+                .expect("missing source for visited module");
             Ok(Module {
                 path,
                 module_name,
@@ -216,9 +248,9 @@ fn visit(
 
     for req in scan_result.requires {
         match resolver.resolve(&req) {
-            ResolveResult::Found(dep_path) => {
-                visit(&dep_path, &req, resolver, loaders, mode, visited, in_stack, order)?
-            }
+            ResolveResult::Found(dep_path) => visit(
+                &dep_path, &req, resolver, loaders, mode, visited, in_stack, order,
+            )?,
             ResolveResult::External => {}
             ResolveResult::NotFound => {
                 return Err(BundlerError::UnresolvedModule {

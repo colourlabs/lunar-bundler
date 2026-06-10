@@ -123,7 +123,10 @@ mod tests {
 
     #[test]
     fn test_strip_line_comment() {
-        assert_eq!(strip_comments("x = 1 -- this is a comment\ny = 2"), "x = 1 \ny = 2");
+        assert_eq!(
+            strip_comments("x = 1 -- this is a comment\ny = 2"),
+            "x = 1 \ny = 2"
+        );
     }
 
     #[test]

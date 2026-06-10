@@ -358,9 +358,9 @@ fn main() -> Result<()> {
     let sandbox_level = config
         .sandbox
         .as_ref()
-        .map(|sb| lunar_bundler::sandbox::SandboxLevel::from_str(
-            sb.level.as_deref().unwrap_or("error"),
-        ))
+        .map(|sb| {
+            lunar_bundler::sandbox::SandboxLevel::from_str(sb.level.as_deref().unwrap_or("error"))
+        })
         .unwrap_or(lunar_bundler::sandbox::SandboxLevel::Off);
 
     let sandbox_deny = config
@@ -385,7 +385,7 @@ fn main() -> Result<()> {
         .and_then(|c| c.ignore.clone())
         .unwrap_or_default()
         .iter()
-        .filter_map(|s| lunar_bundler::compat::CompatIssueKind::from_str(s))
+        .filter_map(|s| s.parse::<lunar_bundler::compat::CompatIssueKind>().ok())
         .collect::<Vec<_>>();
 
     let result = lunar_bundler::bundle(lunar_bundler::BundleOptions {

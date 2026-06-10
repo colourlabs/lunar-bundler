@@ -5,13 +5,13 @@ pub mod emitter;
 pub mod error;
 pub mod graph;
 pub mod loader;
-pub mod minify;
-pub mod sandbox;
-pub mod sourcemap;
 pub mod luarocks;
+pub mod minify;
 pub mod preprocessor;
 pub mod resolver;
+pub mod sandbox;
 pub mod scanner;
+pub mod sourcemap;
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub enum BuildMode {

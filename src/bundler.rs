@@ -1,11 +1,11 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
+use crate::compat::{CompatIssueKind, CompatLevel, check_compat};
 use crate::emitter::Emitter;
 use crate::graph::build_graph;
 use crate::minify::minify_lua;
 use crate::resolver::Resolver;
-use crate::compat::{check_compat, CompatIssueKind, CompatLevel};
 use crate::sandbox::SandboxLevel;
 use crate::{BuildMode, Loader, LoaderContext};
 
@@ -44,8 +44,7 @@ pub fn run_loaders(
     for (pattern, loaders) in rules {
         let path_str = path.to_string_lossy();
         let file_name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-        if glob_match::glob_match(pattern, &path_str)
-            || glob_match::glob_match(pattern, file_name)
+        if glob_match::glob_match(pattern, &path_str) || glob_match::glob_match(pattern, file_name)
         {
             for loader in loaders {
                 source = loader(LoaderContext {
@@ -112,10 +111,11 @@ pub fn bundle(opts: BundlerOptions) -> Result<BundleOutput> {
             let issues = check_compat(&module.source, &opts.lua_version, &opts.compat_ignore);
             for issue in &issues {
                 all_issues.push(format!(
-                    "{}:{}: {}",
+                    "{}:{}: {:?} is not supported in Lua {}",
                     module.path.display(),
                     issue.line + 1,
-                    format!("{:?} is not supported in Lua {}", issue.kind, opts.lua_version)
+                    issue.kind,
+                    opts.lua_version
                 ));
             }
         }
