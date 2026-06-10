@@ -9,8 +9,22 @@ local function require(name)
     return __require(name)
 end
 
+local function __module_wrap(name, path, fn)
+    local ok, result = xpcall(fn, function(err)
+        local msg = "module '" .. name .. "' (" .. path .. "): " .. tostring(err)
+        if debug and debug.traceback then
+            msg = debug.traceback(msg, 2)
+        end
+        return msg
+    end)
+    if not ok then
+        error(result, 0)
+    end
+    return result
+end
+
 -- /home/rgb/projects/lunar-bundler/demo/src/utils.lua
-__modules["src.utils"] = (function()
+__modules["src.utils"] = __module_wrap("src.utils", "/home/rgb/projects/lunar-bundler/demo/src/utils.lua", function()
 local M = {}
 
 function M.log(msg)
@@ -18,10 +32,10 @@ function M.log(msg)
 end
 
 return M
-end)()
+end)
 
 -- /home/rgb/projects/lunar-bundler/demo/src/greeter.lua
-__modules["src.greeter"] = (function()
+__modules["src.greeter"] = __module_wrap("src.greeter", "/home/rgb/projects/lunar-bundler/demo/src/greeter.lua", function()
 local utils = require("src.utils")
 local M = {}
 
@@ -31,10 +45,10 @@ function M.greet(name)
 end
 
 return M
-end)()
+end)
 
 -- /home/rgb/projects/lunar-bundler/demo/src/config.lua
-__modules["src.config"] = (function()
+__modules["src.config"] = __module_wrap("src.config", "/home/rgb/projects/lunar-bundler/demo/src/config.lua", function()
 local utils = require("src.utils")
 local M = {}
 
@@ -49,7 +63,7 @@ function M.get(key)
 end
 
 return M
-end)()
+end)
 
 -- /home/rgb/projects/lunar-bundler/demo/main.lua
 -- example app that requires from many sources
@@ -59,4 +73,4 @@ local config = require("src.config")
 
 greeter.greet(config.get("name"))
 greeter.greet(config.get("language"))
-
+--# sourceMappingURL=bundle.lua.map

@@ -1,68 +1,153 @@
-//! Core bundling pipeline that wires together resolution, graph building, and emission.
-//!
-//! This module is the internal orchestrator - the public API is exposed through
-//! [`crate::bundle`] in `lib.rs` which handles file I/O and config before
-//! delegating here.
-//!
-//! ## pipeline
-//!
-//! ```text
-//! BundlerOptions
-//!     → Resolver (search paths + externals + overrides)
-//!     → build_graph (recursive require() walking + topo sort)
-//!     → Emitter (write runtime shim + module wrappers + entry point)
-//!     → BundleOutput
-//! ```
-
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::emitter::Emitter;
 use crate::graph::build_graph;
+use crate::minify::minify_lua;
 use crate::resolver::Resolver;
+use crate::compat::{check_compat, CompatIssueKind, CompatLevel};
+use crate::sandbox::SandboxLevel;
+use crate::{BuildMode, Loader, LoaderContext};
 
-/// internal options passed to the bundler pipeline.
-/// see [`crate::BundleOptions`] for the public equivalent which
-/// takes file paths for injections instead of strings.
 pub struct BundlerOptions {
-    /// entry point lua file
     pub entry: PathBuf,
-    /// directories to search for required modules
     pub search_paths: Vec<PathBuf>,
-    /// contents of the file to inject at the top of the bundle
+    pub lua_version: String,
     pub inject_top: Option<String>,
-    /// contents of the file to inject at the bottom of the bundle
     pub inject_bottom: Option<String>,
-    /// module names to treat as external
     pub externals: Vec<String>,
-    /// module name to file path overrides
     pub overrides: Vec<(String, PathBuf)>,
+    pub resolve_extensions: Vec<String>,
+    pub loaders: Vec<(String, Vec<Loader>)>,
+    pub mode: BuildMode,
+    pub sandbox_level: SandboxLevel,
+    pub sandbox_deny: Vec<String>,
+    pub compat_level: CompatLevel,
+    pub compat_ignore: Vec<CompatIssueKind>,
 }
 
-/// output of a successful bundle operation
 pub struct BundleOutput {
-    /// the final bundled lua source
     pub output: String,
-    /// number of dependency modules bundled, excluding the entry point
+    pub sourcemap: String,
     pub module_count: usize,
 }
 
-/// run the full bundling pipeline and return the bundled output.
-///
-/// the entry point is always the last module emitted, dependencies
-/// are sorted topologically so each module appears before anything
-/// that requires it.
+pub fn run_loaders(
+    source: String,
+    path: &Path,
+    module_name: &str,
+    rules: &[(String, Vec<Loader>)],
+    mode: &BuildMode,
+) -> anyhow::Result<String> {
+    let mut source = source;
+
+    for (pattern, loaders) in rules {
+        let path_str = path.to_string_lossy();
+        let file_name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+        if glob_match::glob_match(pattern, &path_str)
+            || glob_match::glob_match(pattern, file_name)
+        {
+            for loader in loaders {
+                source = loader(LoaderContext {
+                    source,
+                    path: path.to_path_buf(),
+                    module_name: module_name.to_string(),
+                    mode: mode.clone(),
+                })?;
+            }
+        }
+    }
+
+    Ok(source)
+}
+
 pub fn bundle(opts: BundlerOptions) -> Result<BundleOutput> {
+    let extensions = if opts.resolve_extensions.is_empty() {
+        vec!["lua".to_string()]
+    } else {
+        opts.resolve_extensions
+    };
     let resolver = Resolver::new(
         opts.search_paths,
         opts.externals,
         opts.overrides.into_iter().collect(),
-    );
-    let graph = build_graph(opts.entry, &resolver)?;
+    )
+    .with_extensions(extensions);
+
+    let mut graph = build_graph(opts.entry, &resolver, &opts.loaders, &opts.mode)?;
+
+    // Sandbox check
+    if opts.sandbox_level != SandboxLevel::Off && !opts.sandbox_deny.is_empty() {
+        let mut all_violations = Vec::new();
+        for module in &graph.modules {
+            let violations = crate::sandbox::check_sandbox(&module.source, &opts.sandbox_deny);
+            for v in &violations {
+                all_violations.push(format!(
+                    "{}:{}: use of denied global '{}'",
+                    module.path.display(),
+                    v.line,
+                    v.name
+                ));
+            }
+        }
+        if !all_violations.is_empty() {
+            match opts.sandbox_level {
+                SandboxLevel::Error => {
+                    anyhow::bail!("sandbox violations:\n{}", all_violations.join("\n"));
+                }
+                SandboxLevel::Warn => {
+                    for msg in &all_violations {
+                        eprintln!("warning: sandbox violation: {}", msg);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Compatibility check
+    if opts.compat_level != CompatLevel::Off {
+        let mut all_issues = Vec::new();
+        for module in &graph.modules {
+            let issues = check_compat(&module.source, &opts.lua_version, &opts.compat_ignore);
+            for issue in &issues {
+                all_issues.push(format!(
+                    "{}:{}: {}",
+                    module.path.display(),
+                    issue.line + 1,
+                    format!("{:?} is not supported in Lua {}", issue.kind, opts.lua_version)
+                ));
+            }
+        }
+        if !all_issues.is_empty() {
+            match opts.compat_level {
+                CompatLevel::Error => {
+                    anyhow::bail!("compatibility issues:\n{}", all_issues.join("\n"));
+                }
+                CompatLevel::Warn => {
+                    for msg in &all_issues {
+                        eprintln!("warning: compat: {}", msg);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Minify module sources in production mode
+    if opts.mode == BuildMode::Production {
+        for module in &mut graph.modules {
+            module.source = minify_lua(&module.source);
+        }
+    }
+
     let module_count = graph.modules.len().saturating_sub(1);
-    let emitter = Emitter::new(opts.inject_top, opts.inject_bottom);
+    let emitter = Emitter::new(opts.inject_top, opts.inject_bottom, &opts.mode);
+    let (output, sourcemap) = emitter.emit(&graph);
+
     Ok(BundleOutput {
-        output: emitter.emit(&graph),
+        output,
+        sourcemap,
         module_count,
     })
 }

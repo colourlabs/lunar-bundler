@@ -135,6 +135,89 @@ fn test_unresolved_non_external_errors() {
 }
 
 #[test]
+fn test_moonscript_loader() {
+    // skip if moonc isn't available
+    let has_moonc = std::process::Command::new("moonc")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+        || dirs::home_dir()
+            .unwrap_or_default()
+            .join(".luarocks/bin/moonc")
+            .exists();
+
+    if !has_moonc {
+        eprintln!("skipping: moonscript not installed (install with `luarocks install moonscript`)");
+        return;
+    }
+
+    let out = bundle(BundleOptions {
+        entry: fixture("moonscript/main.lua"),
+        search_paths: vec![fixture("moonscript")],
+        lua_version: "54".to_string(),
+        loaders: vec![("*.moon".to_string(), vec![lunar_bundler::loader::moonscript_loader()])],
+        resolve_extensions: vec!["moon".to_string(), "lua".to_string()],
+        ..Default::default()
+    })
+    .unwrap()
+    .output;
+
+    // moonscript class -> Lua metatable should be compiled
+    assert!(!out.contains("class Greeting"), "raw Moonscript should not appear");
+    assert!(out.contains("local Greeting"), "compiled Lua should have local Greeting");
+    assert!(out.contains("hello = function"), "compiled method should exist");
+
+    // plain .lua file should pass through unmodified
+    assert!(out.contains("function M.capitalize"), "plain lua should be present");
+
+    // modules should be present in __modules
+    assert!(out.contains("__modules[\"greeting\"]"));
+    assert!(out.contains("__modules[\"utils\"]"));
+}
+
+#[test]
+fn test_production_minification() {
+    let out = bundle(BundleOptions {
+        entry: fixture("simple/main.lua"),
+        search_paths: vec![fixture("simple")],
+        lua_version: "54".to_string(),
+        mode: lunar_bundler::BuildMode::Production,
+        ..Default::default()
+    })
+    .unwrap();
+
+    // In production: no sourceMappingURL comment
+    assert!(!out.output.contains("sourceMappingURL"), "no dev hint in production");
+
+    // sourcemap should still be present on the result
+    assert!(out.sourcemap.contains("\"version\":3"), "sourcemap generated in production too");
+}
+
+#[test]
+fn test_dev_sourcemap() {
+    // Fixture with comments to verify both outputs
+    let out = bundle(BundleOptions {
+        entry: fixture("simple/main.lua"),
+        search_paths: vec![fixture("simple")],
+        lua_version: "54".to_string(),
+        mode: lunar_bundler::BuildMode::Development,
+        ..Default::default()
+    })
+    .unwrap();
+
+    // In dev: sourceMappingURL should be present
+    assert!(out.output.contains("sourceMappingURL"), "dev output has sourcemap hint");
+
+    // sourcemap should be valid JSON
+    let sm: serde_json::Value = serde_json::from_str(&out.sourcemap)
+        .expect("sourcemap should be valid JSON");
+    assert_eq!(sm["version"], 3);
+    assert!(!sm["sources"].as_array().unwrap().is_empty());
+    assert!(!sm["mappings"].as_str().unwrap().is_empty());
+}
+
+#[test]
 #[ignore]
 fn test_luarocks_argparse() {
     // skip if luarocks isn't available
@@ -168,6 +251,10 @@ fn test_luarocks_argparse() {
         externals: vec![],
         overrides: vec![],
         luarocks: true,
+        mode: lunar_bundler::BuildMode::default(),
+        loaders: vec![],
+        resolve_extensions: vec![],
+        ..Default::default()
     })
     .unwrap()
     .output;

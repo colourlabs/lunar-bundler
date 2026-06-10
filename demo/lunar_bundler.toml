@@ -5,3 +5,17 @@ lua_version = "54"
 
 [paths]
 search = ["."]
+
+# webpack-style loader system
+# named commands that can be referenced in rules below
+[loaders]
+commands = { strip_debug = "lua -e 'io.write((io.stdin:read(\"*a\"):gsub(\"--%[DEBUG%] .-\n\", \"\")))'" }
+
+[[loaders.rules]]
+test = "*.lua$"
+use = ["strip_debug"]
+mode = "production"
+
+[[loaders.rules]]
+test = "*.moon$"
+run = "moonc -"

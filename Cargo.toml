@@ -23,6 +23,7 @@ toml = "1.1.2"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 walkdir = "2.5.0"
+glob-match = "0.2"
 
 # The profile that 'dist' will build with
 [profile.dist]

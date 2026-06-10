@@ -19,6 +19,7 @@
 //! 4. no config, all defaults
 
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 /// top-level config structure, all sections are optional
@@ -28,6 +29,9 @@ pub struct Config {
     pub paths: Option<PathsConfig>,
     pub inject: Option<InjectConfig>,
     pub resolve: Option<ResolveConfig>,
+    pub loaders: Option<LoadersConfig>,
+    pub sandbox: Option<SandboxConfig>,
+    pub compat: Option<CompatConfig>,
 }
 
 /// controls the core bundling behaviour
@@ -37,7 +41,7 @@ pub struct BundleConfig {
     pub entry: Option<PathBuf>,
     /// output file path
     pub output: Option<PathBuf>,
-    /// lua version to target: "51", "52", "53", "54", "55"
+    /// lua version to target: "51", "52", "53", "54", "55", "luajit"
     pub lua_version: Option<String>,
     /// enable luarocks path discovery, defaults to false
     pub luarocks: Option<bool>,
@@ -67,6 +71,8 @@ pub struct ResolveConfig {
     pub externals: Option<Vec<String>>,
     /// override where specific modules resolve to on disk
     pub overrides: Option<Vec<ModuleOverride>>,
+    /// file extensions to try when resolving modules (e.g. ["lua", "moon"])
+    pub extensions: Option<Vec<String>>,
 }
 
 /// maps a module name to a specific file path, bypassing normal resolution
@@ -76,6 +82,48 @@ pub struct ModuleOverride {
     pub module: String,
     /// the file to resolve it to
     pub path: PathBuf,
+}
+
+/// Configures file loaders (webpack-style module rules).
+#[derive(Debug, Deserialize, Default)]
+pub struct LoadersConfig {
+    /// Named shell commands that can be referenced in rules.
+    /// e.g. `strip-comments = "lua tools/strip-comments.lua"`
+    pub commands: Option<HashMap<String, String>>,
+    /// Module rules that match files by glob pattern and apply loaders.
+    pub rules: Option<Vec<LoaderRuleConfig>>,
+}
+
+/// A single loader rule.
+#[derive(Debug, Deserialize, Clone)]
+pub struct LoaderRuleConfig {
+    /// Glob pattern to match files (e.g. "*.lua$", "*.moon$")
+    pub test: String,
+    /// Named loaders to apply (references keys from `[loaders.commands]`)
+    #[serde(alias = "use")]
+    pub use_: Option<Vec<String>>,
+    /// Inline shell command to run as a loader
+    pub run: Option<String>,
+    /// Only apply this rule in the given mode ("development" or "production")
+    pub mode: Option<String>,
+}
+
+/// Configures Lua version compatibility checks.
+#[derive(Debug, Deserialize)]
+pub struct CompatConfig {
+    /// "error" (default), "warn", or "off"
+    pub level: Option<String>,
+    /// List of CompatIssueKind variant names to ignore
+    pub ignore: Option<Vec<String>>,
+}
+
+/// Configures sandbox restrictions on allowed globals.
+#[derive(Debug, Deserialize)]
+pub struct SandboxConfig {
+    /// "error" (default) or "warn"
+    pub level: Option<String>,
+    /// List of denied global names (e.g. "os", "io", "dofile")
+    pub deny: Option<Vec<String>>,
 }
 
 impl Config {

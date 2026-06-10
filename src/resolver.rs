@@ -109,6 +109,7 @@ pub struct Resolver {
     search_paths: Vec<PathBuf>,
     externals: Vec<String>,
     overrides: HashMap<String, PathBuf>,
+    extensions: Vec<String>,
 }
 
 impl Resolver {
@@ -121,11 +122,17 @@ impl Resolver {
             search_paths,
             externals,
             overrides,
+            extensions: vec!["lua".to_string()],
         }
     }
 
     pub fn with_paths(search_paths: Vec<PathBuf>) -> Self {
         Self::new(search_paths, vec![], HashMap::new())
+    }
+
+    pub fn with_extensions(mut self, extensions: Vec<String>) -> Self {
+        self.extensions = extensions;
+        self
     }
 
     pub fn resolve(&self, module: &str) -> ResolveResult {
@@ -142,21 +149,27 @@ impl Resolver {
         let as_path = module.replace(['.', '/'], std::path::MAIN_SEPARATOR_STR);
 
         for base in &self.search_paths {
-            let candidate = base.join(format!("{}.lua", as_path));
-            if candidate.exists() {
-                if crate::luarocks::is_native_module(&candidate) {
-                    tracing::warn!(
-                        module,
-                        "native C module cannot be bundled!, treating as external"
-                    );
-                    return ResolveResult::External;
+            // Try each extension (e.g. .lua, .moon, .teal)
+            for ext in &self.extensions {
+                let candidate = base.join(format!("{}.{}", as_path, ext));
+                if candidate.exists() {
+                    if crate::luarocks::is_native_module(&candidate) {
+                        tracing::warn!(
+                            module,
+                            "native C module cannot be bundled!, treating as external"
+                        );
+                        return ResolveResult::External;
+                    }
+                    return ResolveResult::Found(candidate);
                 }
-                return ResolveResult::Found(candidate);
             }
 
-            let candidate = base.join(&as_path).join("init.lua");
-            if candidate.exists() {
-                return ResolveResult::Found(candidate);
+            // Try directory init files with each extension
+            for ext in &self.extensions {
+                let candidate = base.join(&as_path).join(format!("init.{}", ext));
+                if candidate.exists() {
+                    return ResolveResult::Found(candidate);
+                }
             }
         }
 
