@@ -32,6 +32,7 @@ pub struct Config {
     pub loaders: Option<LoadersConfig>,
     pub sandbox: Option<SandboxConfig>,
     pub compat: Option<CompatConfig>,
+    pub treeshake: Option<TreeshakeConfig>,
 }
 
 /// controls the core bundling behaviour
@@ -115,6 +116,13 @@ pub struct CompatConfig {
     pub level: Option<String>,
     /// List of CompatIssueKind variant names to ignore
     pub ignore: Option<Vec<String>>,
+}
+
+/// Configures tree shaking behaviour.
+#[derive(Debug, Deserialize)]
+pub struct TreeshakeConfig {
+    /// "off" (default), "basic", or "aggressive"
+    pub level: Option<String>,
 }
 
 /// Configures sandbox restrictions on allowed globals.

@@ -7,6 +7,7 @@ use crate::graph::build_graph;
 use crate::minify::minify_lua;
 use crate::resolver::Resolver;
 use crate::sandbox::SandboxLevel;
+use crate::treeshake::{self, TreeShakeLevel};
 use crate::{BuildMode, Loader, LoaderContext};
 
 pub struct BundlerOptions {
@@ -24,6 +25,7 @@ pub struct BundlerOptions {
     pub sandbox_deny: Vec<String>,
     pub compat_level: CompatLevel,
     pub compat_ignore: Vec<CompatIssueKind>,
+    pub treeshake_level: TreeShakeLevel,
 }
 
 pub struct BundleOutput {
@@ -131,6 +133,13 @@ pub fn bundle(opts: BundlerOptions) -> Result<BundleOutput> {
                 }
                 _ => {}
             }
+        }
+    }
+
+    // Tree shaking
+    if opts.treeshake_level != TreeShakeLevel::Off {
+        for module in &mut graph.modules {
+            module.source = treeshake::treeshake(&module.source, opts.treeshake_level);
         }
     }
 

@@ -12,6 +12,7 @@ pub mod resolver;
 pub mod sandbox;
 pub mod scanner;
 pub mod sourcemap;
+pub mod treeshake;
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub enum BuildMode {
@@ -54,6 +55,7 @@ pub struct BundleOptions {
     pub sandbox_deny: Vec<String>,
     pub compat_level: crate::compat::CompatLevel,
     pub compat_ignore: Vec<crate::compat::CompatIssueKind>,
+    pub treeshake_level: crate::treeshake::TreeShakeLevel,
 }
 
 impl Default for BundleOptions {
@@ -74,6 +76,7 @@ impl Default for BundleOptions {
             sandbox_deny: vec![],
             compat_level: crate::compat::CompatLevel::Off,
             compat_ignore: vec![],
+            treeshake_level: crate::treeshake::TreeShakeLevel::default(),
         }
     }
 }
@@ -118,8 +121,9 @@ pub fn bundle(opts: BundleOptions) -> anyhow::Result<BundleResult> {
         sandbox_level: opts.sandbox_level,
         sandbox_deny: opts.sandbox_deny,
         compat_level: opts.compat_level,
-        compat_ignore: opts.compat_ignore,
-    })?;
+            compat_ignore: opts.compat_ignore,
+            treeshake_level: opts.treeshake_level,
+        })?;
 
     Ok(BundleResult {
         module_count: result.module_count,

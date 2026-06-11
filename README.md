@@ -178,6 +178,7 @@ the checker detects:
 the check runs against `bundle.lua_version` (passed via `--lua-version` CLI flag or `[bundle] lua_version` in config).
 
 Supported version tags:
+
 - `"51"` (or `"5.1"`)
 - `"52"` (or `"5.2"`)
 - `"53"` (or `"5.3"`)
@@ -202,6 +203,47 @@ or in config:
 mode = "production"
 ```
 
+## tree shaking
+
+lunar-bundler can remove unused code from your bundle with tree shaking. it works at the intra-module level, eliminating dead local variables and functions that are never referenced.
+
+### levels
+
+| level        | behaviour                                                                |
+| ------------ | ------------------------------------------------------------------------ |
+| `off`        | no tree shaking (default)                                                |
+| `basic`      | removes unused local variables and local function declarations            |
+| `aggressive` | same as basic (cross-module export analysis planned)                     |
+
+### CLI
+
+```bash
+lunar-bundler src/main.lua -o bundle.lua --treeshake basic
+```
+
+### config
+
+```toml
+[treeshake]
+level = "basic"
+```
+
+### what gets removed
+
+- `local x` (declaration without initializer) when `x` is never read
+- `local x = 5` (literal initializer: number, string, boolean, nil) when `x` is never referenced
+- `local function helper() ... end` when `helper` is never called
+
+### what is preserved
+
+- initializers with side effects (function calls, table constructors, binary ops, etc.) even if the variable is unused — tree shaking is conservative and never changes program behaviour
+- `local x = io.open("file")` kept despite `x` being unused, because `io.open()` has a side effect
+- recursive and mutually recursive functions
+- return statements and module exports
+- all global references and assignments
+
+tree shaking runs before minification in production mode, so dead code is eliminated before the bundle is compressed.
+
 ## loaders
 
 loaders transform files before bundling. useful for transpilers like moonscript or teal.
@@ -213,7 +255,7 @@ these loaders use temp files for cross-platform support (no stdin pipe reliance)
 | loader        | transpiler | install                       |
 | ------------- | ---------- | ----------------------------- |
 | `@moonscript` | `moonc`    | `luarocks install moonscript` |
-| `@teal`       | `tl`       | `luarocks install teal`       |
+| `@teal`       | `tl`       | `luarocks install tl`         |
 
 ```toml
 [resolve]
