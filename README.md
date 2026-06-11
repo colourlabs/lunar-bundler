@@ -209,11 +209,11 @@ lunar-bundler can remove unused code from your bundle with tree shaking. it work
 
 ### levels
 
-| level        | behaviour                                                                |
-| ------------ | ------------------------------------------------------------------------ |
-| `off`        | no tree shaking (default)                                                |
-| `basic`      | removes unused local variables and local function declarations            |
-| `aggressive` | same as basic (cross-module export analysis planned)                     |
+| level        | behaviour                                                      |
+| ------------ | -------------------------------------------------------------- |
+| `off`        | no tree shaking (default)                                      |
+| `basic`      | removes unused local variables and local function declarations |
+| `aggressive` | same as basic (cross-module export analysis planned)           |
 
 ### CLI
 
@@ -236,7 +236,7 @@ level = "basic"
 
 ### what is preserved
 
-- initializers with side effects (function calls, table constructors, binary ops, etc.) even if the variable is unused — tree shaking is conservative and never changes program behaviour
+- initializers with side effects (function calls, table constructors, binary ops, etc.) even if the variable is unused - tree shaking is conservative and never changes program behaviour
 - `local x = io.open("file")` kept despite `x` being unused, because `io.open()` has a side effect
 - recursive and mutually recursive functions
 - return statements and module exports

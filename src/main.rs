@@ -523,10 +523,7 @@ fn main() -> Result<()> {
         compat_ignore,
         treeshake_level: {
             let cli_level = cli.treeshake.as_deref();
-            let config_level = config
-                .treeshake
-                .as_ref()
-                .and_then(|t| t.level.as_deref());
+            let config_level = config.treeshake.as_ref().and_then(|t| t.level.as_deref());
             match cli_level.or(config_level) {
                 Some(level) => level.parse().unwrap_or_default(),
                 None => lunar_bundler::treeshake::TreeShakeLevel::default(),

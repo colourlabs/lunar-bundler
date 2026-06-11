@@ -121,9 +121,9 @@ pub fn bundle(opts: BundleOptions) -> anyhow::Result<BundleResult> {
         sandbox_level: opts.sandbox_level,
         sandbox_deny: opts.sandbox_deny,
         compat_level: opts.compat_level,
-            compat_ignore: opts.compat_ignore,
-            treeshake_level: opts.treeshake_level,
-        })?;
+        compat_ignore: opts.compat_ignore,
+        treeshake_level: opts.treeshake_level,
+    })?;
 
     Ok(BundleResult {
         module_count: result.module_count,

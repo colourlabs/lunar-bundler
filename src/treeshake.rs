@@ -1,24 +1,19 @@
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 
-use full_moon::ast::{self, punctuated::Punctuated, Expression, Stmt};
+use full_moon::ast::{self, Expression, Stmt, punctuated::Punctuated};
 use full_moon::node::Node;
 use full_moon::visitors::Visitor;
 
 /// Level of tree shaking to apply
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub enum TreeShakeLevel {
+    #[default]
     Off,
     /// Remove unused local variables and local function declarations
     Basic,
     /// Remove unused locals + attempt cross-module unused export removal
     Aggressive,
-}
-
-impl Default for TreeShakeLevel {
-    fn default() -> Self {
-        Self::Off
-    }
 }
 
 impl FromStr for TreeShakeLevel {
@@ -135,9 +130,28 @@ fn is_identifier_token(text: &str) -> bool {
     let trimmed = text.trim();
     !matches!(
         trimmed,
-        "true" | "false" | "nil" | "and" | "or" | "not" | "function" | "end"
-            | "if" | "then" | "else" | "elseif" | "for" | "while" | "repeat"
-            | "until" | "do" | "break" | "return" | "local" | "in" | "goto"
+        "true"
+            | "false"
+            | "nil"
+            | "and"
+            | "or"
+            | "not"
+            | "function"
+            | "end"
+            | "if"
+            | "then"
+            | "else"
+            | "elseif"
+            | "for"
+            | "while"
+            | "repeat"
+            | "until"
+            | "do"
+            | "break"
+            | "return"
+            | "local"
+            | "in"
+            | "goto"
             | "global"
     )
 }
@@ -157,9 +171,7 @@ fn is_pure_expression(expr: &Expression) -> bool {
 }
 
 /// Check if a list of expressions all have no side effects.
-fn all_pure_expressions(
-    exprs: &Punctuated<Expression>,
-) -> bool {
+fn all_pure_expressions(exprs: &Punctuated<Expression>) -> bool {
     exprs.iter().all(is_pure_expression)
 }
 
@@ -206,16 +218,16 @@ fn remove_unused_locals(source: &str) -> String {
     }
 
     // Walk the last statement (return/break)
-    if let Some((last_stmt, semi)) = block.last_stmt_with_semicolon() {
-        if let Some((start, end)) = last_stmt_removal_range(last_stmt, &unused) {
-            let end = semi
-                .as_ref()
-                .and_then(|s| s.end_position())
-                .map(|p| p.bytes())
-                .unwrap_or(end);
-            let end = extend_to_line(&preprocessed, end);
-            removals.push((start, end));
-        }
+    if let Some((last_stmt, semi)) = block.last_stmt_with_semicolon()
+        && let Some((start, end)) = last_stmt_removal_range(last_stmt, &unused)
+    {
+        let end = semi
+            .as_ref()
+            .and_then(|s| s.end_position())
+            .map(|p| p.bytes())
+            .unwrap_or(end);
+        let end = extend_to_line(&preprocessed, end);
+        removals.push((start, end));
     }
 
     if removals.is_empty() {
@@ -223,7 +235,7 @@ fn remove_unused_locals(source: &str) -> String {
     }
 
     // Apply removals in reverse byte order to preserve positions
-    removals.sort_by(|a, b| b.0.cmp(&a.0));
+    removals.sort_by_key(|b| std::cmp::Reverse(b.0));
     let mut result = preprocessed;
     for (start, end) in &removals {
         if *start < result.len() && *end <= result.len() && *start < *end {
@@ -235,10 +247,7 @@ fn remove_unused_locals(source: &str) -> String {
 }
 
 /// Get byte range to remove for a statement, or None if it should stay.
-fn stmt_removal_range(
-    stmt: &Stmt,
-    unused: &HashSet<String>,
-) -> Option<(usize, usize)> {
+fn stmt_removal_range(stmt: &Stmt, unused: &HashSet<String>) -> Option<(usize, usize)> {
     let start = stmt.start_position()?.bytes();
     let end = stmt.end_position()?.bytes();
 
@@ -302,10 +311,22 @@ mod tests {
 
     #[test]
     fn test_tree_shake_level_from_str() {
-        assert_eq!("off".parse::<TreeShakeLevel>().unwrap(), TreeShakeLevel::Off);
-        assert_eq!("basic".parse::<TreeShakeLevel>().unwrap(), TreeShakeLevel::Basic);
-        assert_eq!("aggressive".parse::<TreeShakeLevel>().unwrap(), TreeShakeLevel::Aggressive);
-        assert_eq!("full".parse::<TreeShakeLevel>().unwrap(), TreeShakeLevel::Aggressive);
+        assert_eq!(
+            "off".parse::<TreeShakeLevel>().unwrap(),
+            TreeShakeLevel::Off
+        );
+        assert_eq!(
+            "basic".parse::<TreeShakeLevel>().unwrap(),
+            TreeShakeLevel::Basic
+        );
+        assert_eq!(
+            "aggressive".parse::<TreeShakeLevel>().unwrap(),
+            TreeShakeLevel::Aggressive
+        );
+        assert_eq!(
+            "full".parse::<TreeShakeLevel>().unwrap(),
+            TreeShakeLevel::Aggressive
+        );
         assert!("unknown".parse::<TreeShakeLevel>().is_err());
     }
 
@@ -313,7 +334,10 @@ mod tests {
     fn test_unused_local_no_init() {
         let source = "local unused\nlocal used = 1\nprint(used)\n";
         let result = treeshake(source, TreeShakeLevel::Basic);
-        assert!(!result.contains("local unused"), "should remove unused local");
+        assert!(
+            !result.contains("local unused"),
+            "should remove unused local"
+        );
         assert!(result.contains("local used = 1"), "should keep used local");
         assert!(result.contains("print(used)"), "should keep print call");
     }
@@ -322,7 +346,10 @@ mod tests {
     fn test_unused_local_with_literal_init() {
         let source = "local unused = 5\nlocal used = 1\nprint(used)\n";
         let result = treeshake(source, TreeShakeLevel::Basic);
-        assert!(!result.contains("local unused = 5"), "should remove unused literal init");
+        assert!(
+            !result.contains("local unused = 5"),
+            "should remove unused literal init"
+        );
         assert!(result.contains("local used = 1"), "should keep used local");
     }
 
@@ -330,7 +357,10 @@ mod tests {
     fn test_unused_local_function() {
         let source = "local function helper() return 1 end\nlocal function used() return 2 end\nprint(used())\n";
         let result = treeshake(source, TreeShakeLevel::Basic);
-        assert!(!result.contains("helper"), "should remove unused local function");
+        assert!(
+            !result.contains("helper"),
+            "should remove unused local function"
+        );
         assert!(result.contains("used"), "should keep used function");
     }
 
@@ -351,7 +381,8 @@ mod tests {
 
     #[test]
     fn test_mutual_recursion_kept() {
-        let source = "local function a() return b() end\nlocal function b() return a() end\nprint(a())\n";
+        let source =
+            "local function a() return b() end\nlocal function b() return a() end\nprint(a())\n";
         let result = treeshake(source, TreeShakeLevel::Basic);
         assert!(result.contains("function a()"), "a is used");
         assert!(result.contains("function b()"), "b is called by a");
@@ -361,7 +392,10 @@ mod tests {
     fn test_table_return_not_removed() {
         let source = "local t = { a = 1, b = 2 }\nreturn t\n";
         let result = treeshake(source, TreeShakeLevel::Basic);
-        assert!(result.contains("local t ="), "table constructor stays (not pure)");
+        assert!(
+            result.contains("local t ="),
+            "table constructor stays (not pure)"
+        );
     }
 
     #[test]
@@ -380,11 +414,21 @@ mod tests {
 
     #[test]
     fn test_true_false_nil_are_pure() {
-        let source = "local a = true\nlocal b = false\nlocal c = nil\nlocal used = 1\nprint(used)\n";
+        let source =
+            "local a = true\nlocal b = false\nlocal c = nil\nlocal used = 1\nprint(used)\n";
         let result = treeshake(source, TreeShakeLevel::Basic);
-        assert!(!result.contains("local a = true"), "true literal is pure, so removed");
-        assert!(!result.contains("local b = false"), "false literal is pure, so removed");
-        assert!(!result.contains("local c = nil"), "nil literal is pure, so removed");
+        assert!(
+            !result.contains("local a = true"),
+            "true literal is pure, so removed"
+        );
+        assert!(
+            !result.contains("local b = false"),
+            "false literal is pure, so removed"
+        );
+        assert!(
+            !result.contains("local c = nil"),
+            "nil literal is pure, so removed"
+        );
         assert!(result.contains("local used = 1"), "should keep used local");
     }
 
@@ -393,7 +437,10 @@ mod tests {
         let source = "local x = io.open('file')\nlocal y = 1\nprint(y)\n";
         let result = treeshake(source, TreeShakeLevel::Basic);
         // x has a side-effect RHS, should NOT be removed even if unused
-        assert!(result.contains("local x = io.open"), "side-effect expression keeps the statement");
+        assert!(
+            result.contains("local x = io.open"),
+            "side-effect expression keeps the statement"
+        );
         assert!(result.contains("local y = 1"));
     }
 
@@ -402,7 +449,10 @@ mod tests {
         let source = "local a, b = 1, 2\nlocal c = 3\nlocal d = 4\nprint(c)\n";
         let result = treeshake(source, TreeShakeLevel::Basic);
         // a, b are unused but they share a local stmt with pure literals - removed
-        assert!(!result.contains("local a, b = 1, 2"), "all names unused and pure -> removed");
+        assert!(
+            !result.contains("local a, b = 1, 2"),
+            "all names unused and pure -> removed"
+        );
         assert!(!result.contains("local d = 4"), "d unused -> removed");
         assert!(result.contains("local c = 3"), "c is used");
     }
