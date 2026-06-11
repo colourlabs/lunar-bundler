@@ -43,7 +43,17 @@ impl CompatIssueKind {
     }
 
     pub fn is_issue_for(&self, target_version: &str) -> bool {
-        !self.supported_in().contains(&target_version)
+        let lowered = target_version.to_lowercase();
+        let normalized = match lowered.as_str() {
+            "luajit" | "jit" => "jit",
+            "51" | "5.1" => "51",
+            "52" | "5.2" => "52",
+            "53" | "5.3" => "53",
+            "54" | "5.4" => "54",
+            "55" | "5.5" => "55",
+            other => other,
+        };
+        !self.supported_in().contains(&normalized)
     }
 }
 
@@ -395,5 +405,22 @@ mod tests {
     fn test_table_var_reference() {
         let kinds = check("local f = table.move", "51", &[]);
         assert!(kinds.contains(&CompatIssueKind::TableMove));
+    }
+
+    #[test]
+    fn test_version_normalization() {
+        // "luajit" and "jit" should not flag FfiLibrary
+        let kinds_luajit = check(r#"require("ffi")"#, "luajit", &[]);
+        assert!(!kinds_luajit.contains(&CompatIssueKind::FfiLibrary));
+
+        let kinds_jit = check(r#"require("ffi")"#, "jit", &[]);
+        assert!(!kinds_jit.contains(&CompatIssueKind::FfiLibrary));
+
+        // "5.3" and "53" should not flag BitwiseOps
+        let kinds_53 = check("local x = 1 & 2", "5.3", &[]);
+        assert!(!kinds_53.contains(&CompatIssueKind::BitwiseOps));
+
+        let kinds_53_no_dot = check("local x = 1 & 2", "53", &[]);
+        assert!(!kinds_53_no_dot.contains(&CompatIssueKind::BitwiseOps));
     }
 }

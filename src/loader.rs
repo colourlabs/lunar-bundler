@@ -17,6 +17,8 @@ pub fn teal_loader() -> Loader {
         let output = std::process::Command::new("tl")
             .arg("gen")
             .arg(&tl_path)
+            .arg("--output")
+            .arg(&lua_path)
             .output()
             .map_err(|e| anyhow::anyhow!("failed to run tl: {}", e))?;
 
@@ -44,6 +46,8 @@ pub fn moonscript_loader() -> Loader {
             .map_err(|e| anyhow::anyhow!("failed to write temp .moon file: {}", e))?;
 
         let output = std::process::Command::new("moonc")
+            .arg("-o")
+            .arg(&lua_path)
             .arg(&moon_path)
             .output()
             .map_err(|e| anyhow::anyhow!("failed to run moonc: {}", e))?;

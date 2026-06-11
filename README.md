@@ -1,6 +1,6 @@
 # lunar-bundler
 
-A Lua bundler written in Rust. Resolves `require()` calls and bundles your Lua project into a single file. Supports Lua 5.1 (LuaJIT included) through 5.5 (not tested on Luau). Works anywhere and any project.
+A Lua bundler written in Rust. Resolves `require()` calls and bundles your Lua project into a single file. Supports Lua 5.1 (LuaJIT included) through 5.5. Works anywhere and any project.
 
 ## installation
 
@@ -40,7 +40,7 @@ lunar-bundler --config my-config.toml
 # scaffold a new project
 lunar-bundler init                  # default: Lua template
 lunar-bundler init --template lua   # lua template
-lunar-bundler init --template teal  # requires `tl`
+lunar-bundler init --template teal  # teal template
 lunar-bundler init my-project       # scaffold in a subdirectory
 ```
 
@@ -175,7 +175,17 @@ the checker detects:
 | `BitLibrary`          | `require("bit")`                                        | LuaJIT only  |
 | `JitLibrary`          | `require("jit")`                                        | LuaJIT only  |
 
-the check runs against `bundle.lua_version` (passed via `--lua-version` CLI flag or `[bundle] lua_version` in config). for example, setting `--lua-version 51` will flag all Lua 5.2+ features.
+the check runs against `bundle.lua_version` (passed via `--lua-version` CLI flag or `[bundle] lua_version` in config).
+
+Supported version tags:
+- `"51"` (or `"5.1"`)
+- `"52"` (or `"5.2"`)
+- `"53"` (or `"5.3"`)
+- `"54"` (or `"5.4"`)
+- `"55"` (or `"5.5"`)
+- `"luajit"` (or `"jit"`): Represents LuaJIT (based on Lua 5.1, allowing `goto` and libraries like `ffi`, `bit`, and `jit` but flagging other Lua 5.2+ features).
+
+For example, setting `--lua-version 51` will flag all Lua 5.2+ features, whereas setting `--lua-version luajit` will allow LuaJIT-specific extensions/libraries and flag features from Lua 5.2+ that are incompatible with LuaJIT.
 
 ## build modes
 
@@ -207,7 +217,7 @@ these loaders use temp files for cross-platform support (no stdin pipe reliance)
 
 ```toml
 [resolve]
-extensions = ["moon", "lua"]
+extensions = ["moon", "lua", "tl"]
 
 [[loaders.rules]]
 test = "*.moon"
@@ -334,14 +344,15 @@ the output bundle will contain the compiled Lua (not raw moonscript), so no moon
 the `init` subcommand scaffolds a new project:
 
 ```bash
-lunar-bundler init                   # default: Lua template
-lunar-bundler init --template lua    # plain Lua
-lunar-bundler init --template teal   # Teal with @teal loader
-lunar-bundler init --template moonscript # Moonscript with @moonscript loader
-lunar-bundler init my-project        # scaffold in a subdirectory
+lunar-bundler init                               # default: Lua template
+lunar-bundler init --template lua                # plain Lua
+lunar-bundler init --template teal               # Teal with the builtin @teal loader
+lunar-bundler init --template moonscript         # Moonscript with builtin @moonscript loader
+lunar-bundler init my-project                    # scaffold in a subdirectory
+lunar-bundler init --config-format jsonc         # scaffold with jsonc configuration (default: toml)
 ```
 
-each template generates a `lunar_bundler.toml`, entry point, and a sample module.
+each template generates a configuration file (`lunar_bundler.toml` or `lunar_bundler.jsonc`), entry point, and a sample module.
 
 ## source maps
 

@@ -62,14 +62,19 @@ enum Command {
         /// project template (moonscript, teal, lua)
         #[arg(long, default_value = "lua")]
         template: String,
+
+        /// config format (toml, jsonc)
+        #[arg(long, default_value = "toml")]
+        config_format: String,
     },
 }
 
-fn scaffold(path: &std::path::Path, template: &str) -> Result<()> {
+fn scaffold(path: &std::path::Path, template: &str, config_format: &str) -> Result<()> {
+    let format = config_format.to_lowercase();
     match template {
-        "moonscript" => scaffold_moonscript(path),
-        "teal" => scaffold_teal(path),
-        "lua" => scaffold_lua(path),
+        "moonscript" => scaffold_moonscript(path, &format),
+        "teal" => scaffold_teal(path, &format),
+        "lua" => scaffold_lua(path, &format),
         _ => anyhow::bail!(
             "unknown template '{}'. available: moonscript, teal, lua",
             template
@@ -77,27 +82,55 @@ fn scaffold(path: &std::path::Path, template: &str) -> Result<()> {
     }
 }
 
-fn scaffold_moonscript(path: &std::path::Path) -> Result<()> {
+fn scaffold_moonscript(path: &std::path::Path, config_format: &str) -> Result<()> {
     let src = path.join("src");
     std::fs::create_dir_all(&src)?;
 
-    std::fs::write(
-        path.join("lunar_bundler.toml"),
-        r#"[bundle]
+    match config_format {
+        "jsonc" => {
+            std::fs::write(
+                path.join("lunar_bundler.jsonc"),
+                r#"{
+  "bundle": {
+    "entry": "src/main.lua",
+    "output": "bundle.lua"
+  },
+  "resolve": {
+    "extensions": ["moon", "lua"]
+  },
+  "loaders": {
+    "rules": [
+      {
+        "test": "*.moon",
+        "use": ["@moonscript"]
+      }
+    ]
+  }
+}
+"#,
+            )?;
+        }
+        "toml" => {
+            std::fs::write(
+                path.join("lunar_bundler.toml"),
+                r#"[bundle]
 entry = "src/main.lua"
 output = "bundle.lua"
 
 [resolve]
 extensions = ["moon", "lua"]
 
-[loaders]
-commands = { moonscript = "moonc -" }
-
 [[loaders.rules]]
 test = "*.moon"
 use = ["@moonscript"]
 "#,
-    )?;
+            )?;
+        }
+        _ => anyhow::bail!(
+            "unknown config format '{}'. available: toml, jsonc",
+            config_format
+        ),
+    }
 
     std::fs::write(
         src.join("main.lua"),
@@ -121,32 +154,67 @@ g:say()
 "#,
     )?;
 
-    println!("scaffolded Moonscript project in {}", path.display());
-    println!("  run `lunar-bundler` to bundle");
+    println!(
+        "scaffolded {} project in {}",
+        "MoonScript".truecolor(255, 100, 180).bold(),
+        path.display().green()
+    );
+    println!(
+        "  run {} to bundle",
+        "lunar-bundler".truecolor(30, 80, 180).bold()
+    );
     Ok(())
 }
 
-fn scaffold_teal(path: &std::path::Path) -> Result<()> {
+fn scaffold_teal(path: &std::path::Path, config_format: &str) -> Result<()> {
     let src = path.join("src");
     std::fs::create_dir_all(&src)?;
 
-    std::fs::write(
-        path.join("lunar_bundler.toml"),
-        r#"[bundle]
+    match config_format {
+        "jsonc" => {
+            std::fs::write(
+                path.join("lunar_bundler.jsonc"),
+                r#"{
+  "bundle": {
+    "entry": "src/main.lua",
+    "output": "bundle.lua"
+  },
+  "resolve": {
+    "extensions": ["tl", "lua"]
+  },
+  "loaders": {
+    "rules": [
+      {
+        "test": "*.tl",
+        "use": ["@teal"]
+      }
+    ]
+  }
+}
+"#,
+            )?;
+        }
+        "toml" => {
+            std::fs::write(
+                path.join("lunar_bundler.toml"),
+                r#"[bundle]
 entry = "src/main.lua"
 output = "bundle.lua"
 
 [resolve]
 extensions = ["tl", "lua"]
 
-[loaders]
-commands = { teal = "tl gen -" }
-
 [[loaders.rules]]
 test = "*.tl"
-use = ["teal"]
+use = ["@teal"]
 "#,
-    )?;
+            )?;
+        }
+        _ => anyhow::bail!(
+            "unknown config format '{}'. available: toml, jsonc",
+            config_format
+        ),
+    }
 
     std::fs::write(
         src.join("main.lua"),
@@ -167,25 +235,55 @@ return { hello = hello }
 "#,
     )?;
 
-    println!("scaffolded Teal project in {}", path.display());
-    println!("  run `lunar-bundler` to bundle");
+    println!(
+        "scaffolded {} project in {}",
+        "Teal".truecolor(100, 210, 255).bold(),
+        path.display().green()
+    );
+    println!(
+        "  run {} to bundle",
+        "lunar-bundler".truecolor(30, 80, 180).bold()
+    );
     Ok(())
 }
 
-fn scaffold_lua(path: &std::path::Path) -> Result<()> {
+fn scaffold_lua(path: &std::path::Path, config_format: &str) -> Result<()> {
     let src = path.join("src");
     std::fs::create_dir_all(&src)?;
 
-    std::fs::write(
-        path.join("lunar_bundler.toml"),
-        r#"[bundle]
+    match config_format {
+        "jsonc" => {
+            std::fs::write(
+                path.join("lunar_bundler.jsonc"),
+                r#"{
+  "bundle": {
+    "entry": "src/main.lua",
+    "output": "bundle.lua"
+  },
+  "paths": {
+    "search": ["."]
+  }
+}
+"#,
+            )?;
+        }
+        "toml" => {
+            std::fs::write(
+                path.join("lunar_bundler.toml"),
+                r#"[bundle]
 entry = "src/main.lua"
 output = "bundle.lua"
 
 [paths]
 search = ["."]
 "#,
-    )?;
+            )?;
+        }
+        _ => anyhow::bail!(
+            "unknown config format '{}'. available: toml, jsonc",
+            config_format
+        ),
+    }
 
     std::fs::write(
         src.join("main.lua"),
@@ -206,8 +304,15 @@ return { hello = hello }
 "#,
     )?;
 
-    println!("scaffolded Lua project in {}", path.display());
-    println!("  run `lunar-bundler` to bundle");
+    println!(
+        "scaffolded {} project in {}",
+        "Lua".truecolor(0, 100, 255).bold(),
+        path.display().green()
+    );
+    println!(
+        "  run {} to bundle",
+        "lunar-bundler".truecolor(30, 80, 180).bold()
+    );
     Ok(())
 }
 
@@ -215,9 +320,13 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Some(Command::Init { path, template }) => {
+        Some(Command::Init {
+            path,
+            template,
+            config_format,
+        }) => {
             let dir = path.unwrap_or_else(|| std::env::current_dir().unwrap());
-            return scaffold(&dir, &template);
+            return scaffold(&dir, &template, &config_format);
         }
         None => {}
     }
@@ -313,7 +422,7 @@ fn main() -> Result<()> {
                 if let Some(names) = &rule.use_ {
                     for name in names {
                         if name.starts_with('@') {
-                            // Built-in loader
+                            // built-in loaders
                             match name.as_str() {
                                 "@moonscript" => loader_chain.push(moonscript_loader()),
                                 "@teal" => loader_chain.push(teal_loader()),
@@ -445,4 +554,97 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_scaffold_lua_toml() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+
+        scaffold(path, "lua", "toml").unwrap();
+
+        let toml_path = path.join("lunar_bundler.toml");
+        let jsonc_path = path.join("lunar_bundler.jsonc");
+        assert!(toml_path.exists());
+        assert!(!jsonc_path.exists());
+
+        // Make sure it loads correctly
+        let config = Config::load(&toml_path).unwrap();
+        assert!(config.bundle.is_some());
+        assert_eq!(
+            config.bundle.unwrap().entry,
+            Some(PathBuf::from("src/main.lua"))
+        );
+    }
+
+    #[test]
+    fn test_scaffold_lua_jsonc() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+
+        scaffold(path, "lua", "jsonc").unwrap();
+
+        let toml_path = path.join("lunar_bundler.toml");
+        let jsonc_path = path.join("lunar_bundler.jsonc");
+        assert!(!toml_path.exists());
+        assert!(jsonc_path.exists());
+
+        // Make sure it loads correctly
+        let config = Config::load(&jsonc_path).unwrap();
+        assert!(config.bundle.is_some());
+        assert_eq!(
+            config.bundle.unwrap().entry,
+            Some(PathBuf::from("src/main.lua"))
+        );
+    }
+
+    #[test]
+    fn test_scaffold_moonscript_jsonc() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+
+        scaffold(path, "moonscript", "jsonc").unwrap();
+
+        let jsonc_path = path.join("lunar_bundler.jsonc");
+        assert!(jsonc_path.exists());
+
+        let config = Config::load(&jsonc_path).unwrap();
+        assert!(config.resolve.is_some());
+        assert_eq!(
+            config.resolve.unwrap().extensions,
+            Some(vec!["moon".to_string(), "lua".to_string()])
+        );
+    }
+
+    #[test]
+    fn test_scaffold_teal_jsonc() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+
+        scaffold(path, "teal", "JSONC").unwrap(); // test case-insensitivity
+
+        let jsonc_path = path.join("lunar_bundler.jsonc");
+        assert!(jsonc_path.exists());
+
+        let config = Config::load(&jsonc_path).unwrap();
+        assert!(config.resolve.is_some());
+        assert_eq!(
+            config.resolve.unwrap().extensions,
+            Some(vec!["tl".to_string(), "lua".to_string()])
+        );
+    }
+
+    #[test]
+    fn test_scaffold_invalid_format() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+
+        let res = scaffold(path, "lua", "yaml");
+        assert!(res.is_err());
+    }
 }
