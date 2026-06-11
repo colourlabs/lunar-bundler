@@ -359,7 +359,11 @@ fn main() -> Result<()> {
         .sandbox
         .as_ref()
         .map(|sb| {
-            sb.level.as_deref().unwrap_or("error").parse().unwrap_or_default()
+            sb.level
+                .as_deref()
+                .unwrap_or("error")
+                .parse()
+                .unwrap_or_default()
         })
         .unwrap_or(lunar_bundler::sandbox::SandboxLevel::Off);
 

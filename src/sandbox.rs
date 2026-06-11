@@ -24,8 +24,8 @@ impl FromStr for SandboxLevel {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
             "error" => Ok(SandboxLevel::Error),
-            "warn"  => Ok(SandboxLevel::Warn),
-            _       => Ok(SandboxLevel::Off),
+            "warn" => Ok(SandboxLevel::Warn),
+            _ => Ok(SandboxLevel::Off),
         }
     }
 }

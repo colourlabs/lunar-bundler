@@ -189,13 +189,19 @@ pub fn build_graph(
 
     visit(&entry, "__entry__", &mut ctx)?;
 
-    let modules = ctx.order
+    let modules = ctx
+        .order
         .into_iter()
         .map(|path| {
-            let (module_name, source) = ctx.visited
+            let (module_name, source) = ctx
+                .visited
                 .remove(&path)
                 .expect("missing source for visited module");
-            Ok(Module { path, module_name, source })
+            Ok(Module {
+                path,
+                module_name,
+                source,
+            })
         })
         .collect::<Result<Vec<_>>>()?;
 
@@ -214,7 +220,8 @@ fn visit(path: &Path, module_name: &str, ctx: &mut VisitContext) -> Result<()> {
     if ctx.in_stack.contains(&canonical) {
         return Err(BundlerError::CircularDependency {
             cycle: canonical.display().to_string(),
-        }.into());
+        }
+        .into());
     }
 
     ctx.in_stack.insert(canonical.clone());
@@ -242,13 +249,15 @@ fn visit(path: &Path, module_name: &str, ctx: &mut VisitContext) -> Result<()> {
                 return Err(BundlerError::UnresolvedModule {
                     module: req.clone(),
                     requirer: canonical.clone(),
-                }.into());
+                }
+                .into());
             }
         }
     }
 
     ctx.in_stack.remove(&canonical);
-    ctx.visited.insert(canonical.clone(), (module_name.to_string(), source));
+    ctx.visited
+        .insert(canonical.clone(), (module_name.to_string(), source));
     ctx.order.push(canonical);
 
     Ok(())
