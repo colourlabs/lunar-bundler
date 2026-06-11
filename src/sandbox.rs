@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::str::FromStr;
 
 use full_moon::ast;
 use full_moon::visitors::Visitor;
@@ -17,12 +18,14 @@ pub enum SandboxLevel {
     Error,
 }
 
-impl SandboxLevel {
-    pub fn from_str(s: &str) -> Self {
+impl FromStr for SandboxLevel {
+    type Err = ();
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
-            "error" => SandboxLevel::Error,
-            "warn" => SandboxLevel::Warn,
-            _ => SandboxLevel::Off,
+            "error" => Ok(SandboxLevel::Error),
+            "warn"  => Ok(SandboxLevel::Warn),
+            _       => Ok(SandboxLevel::Off),
         }
     }
 }

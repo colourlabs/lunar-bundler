@@ -158,7 +158,14 @@ pub struct DependencyGraph {
     pub modules: Vec<Module>,
 }
 
-type Visited = HashMap<PathBuf, (String, String)>;
+struct VisitContext<'a> {
+    resolver: &'a Resolver,
+    loaders: &'a [(String, Vec<Loader>)],
+    mode: &'a BuildMode,
+    visited: HashMap<PathBuf, (String, String)>,
+    in_stack: HashSet<PathBuf>,
+    order: Vec<PathBuf>,
+}
 
 pub fn build_graph(
     entry: PathBuf,
@@ -166,78 +173,59 @@ pub fn build_graph(
     loaders: &[(String, Vec<Loader>)],
     mode: &BuildMode,
 ) -> Result<DependencyGraph> {
-    let mut visited: Visited = HashMap::new();
-    let mut order: Vec<PathBuf> = Vec::new();
-    let mut in_stack: HashSet<PathBuf> = HashSet::new();
     let entry = entry.canonicalize().map_err(|e| BundlerError::IoError {
         path: entry.clone(),
         source: e,
     })?;
 
-    visit(
-        &entry,
-        "__entry__",
+    let mut ctx = VisitContext {
         resolver,
         loaders,
         mode,
-        &mut visited,
-        &mut in_stack,
-        &mut order,
-    )?;
+        visited: HashMap::new(),
+        in_stack: HashSet::new(),
+        order: Vec::new(),
+    };
 
-    let modules = order
+    visit(&entry, "__entry__", &mut ctx)?;
+
+    let modules = ctx.order
         .into_iter()
         .map(|path| {
-            let (module_name, source) = visited
+            let (module_name, source) = ctx.visited
                 .remove(&path)
                 .expect("missing source for visited module");
-            Ok(Module {
-                path,
-                module_name,
-                source,
-            })
+            Ok(Module { path, module_name, source })
         })
         .collect::<Result<Vec<_>>>()?;
 
     Ok(DependencyGraph { modules })
 }
 
-fn visit(
-    path: &Path,
-    module_name: &str,
-    resolver: &Resolver,
-    loaders: &[(String, Vec<Loader>)],
-    mode: &BuildMode,
-    visited: &mut Visited,
-    in_stack: &mut HashSet<PathBuf>,
-    order: &mut Vec<PathBuf>,
-) -> Result<()> {
-    let canonical = &path.canonicalize().map_err(|e| BundlerError::IoError {
+fn visit(path: &Path, module_name: &str, ctx: &mut VisitContext) -> Result<()> {
+    let canonical = path.canonicalize().map_err(|e| BundlerError::IoError {
         path: path.to_path_buf(),
         source: e,
     })?;
 
-    if visited.contains_key(canonical) {
+    if ctx.visited.contains_key(&canonical) {
         return Ok(());
     }
-
-    if in_stack.contains(canonical) {
+    if ctx.in_stack.contains(&canonical) {
         return Err(BundlerError::CircularDependency {
             cycle: canonical.display().to_string(),
-        }
-        .into());
+        }.into());
     }
 
-    in_stack.insert(canonical.clone());
+    ctx.in_stack.insert(canonical.clone());
 
-    let source = std::fs::read_to_string(canonical).map_err(|e| BundlerError::IoError {
+    let source = std::fs::read_to_string(&canonical).map_err(|e| BundlerError::IoError {
         path: canonical.clone(),
         source: e,
     })?;
 
-    let source = run_loaders(source, canonical, module_name, loaders, mode)?;
-
-    let scan_result = scan_requires(&source, canonical)?;
+    let source = run_loaders(source, &canonical, module_name, ctx.loaders, ctx.mode)?;
+    let scan_result = scan_requires(&source, &canonical)?;
 
     for location in &scan_result.dynamic_requires {
         eprintln!(
@@ -247,24 +235,21 @@ fn visit(
     }
 
     for req in scan_result.requires {
-        match resolver.resolve(&req) {
-            ResolveResult::Found(dep_path) => visit(
-                &dep_path, &req, resolver, loaders, mode, visited, in_stack, order,
-            )?,
+        match ctx.resolver.resolve(&req) {
+            ResolveResult::Found(dep_path) => visit(&dep_path, &req, ctx)?,
             ResolveResult::External => {}
             ResolveResult::NotFound => {
                 return Err(BundlerError::UnresolvedModule {
                     module: req.clone(),
                     requirer: canonical.clone(),
-                }
-                .into());
+                }.into());
             }
         }
     }
 
-    in_stack.remove(canonical);
-    visited.insert(canonical.clone(), (module_name.to_string(), source));
-    order.push(canonical.clone());
+    ctx.in_stack.remove(&canonical);
+    ctx.visited.insert(canonical.clone(), (module_name.to_string(), source));
+    ctx.order.push(canonical);
 
     Ok(())
 }
